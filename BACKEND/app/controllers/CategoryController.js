@@ -21,10 +21,10 @@ categoryController.create=async (req,res)=>{
         res.status(500).json({error:'something went wrong'})
     }
 }
-categoryController.show=async(req,res)=>{
+categoryController.getCategory=async(req,res)=>{
     const errors = validationResult(req)
     if(!errors.isEmpty()){
-        res.status(400).json({errors:'somethiing went wrong'})
+        res.status(400).json({errors:'something went wrong'})
     }
     const id = req.params.id
     try{
@@ -38,7 +38,7 @@ categoryController.show=async(req,res)=>{
         res.status(500).json({error:'something went wrong'})
     }
 }
-categoryController.remove=async(req,res)=>{
+categoryController.delete=async(req,res)=>{
     const errors = validationResult(req)
     if(!errors.isEmpty()){
         res.status(400).json({errors:'something went wrong'})
