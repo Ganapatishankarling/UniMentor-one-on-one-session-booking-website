@@ -1,4 +1,4 @@
-const PaymentValidationSchema = {
+export const PaymentValidationSchema = {
     paymentStatus:{
         in:['body'],
         custom:{
