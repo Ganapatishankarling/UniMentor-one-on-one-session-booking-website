@@ -125,28 +125,6 @@ sessionController.updateMeetingLink = async(req,res)=>{
     }
 }
 
-sessionController.updatePaymentStatus = async(req,res)=>{
-    const errors = validationResult(req)
-    if(!errors.isEmpty()){
-        return res.status(400).json({errors:errors.array()})
-    }
-    const id = req.params.id
-    const {paymentStatus} = req.body
-    try{
-        const session = await Session.findByIdAndUpdate(id,{paymentStatus},{new:true})
-        if(!session){
-            return res.status(404).json({errors:'Session not found'})
-        }
-        session.paymentStatus=paymentStatus
-        await session.save()
-
-        return res.json(session)
-    }catch(err){
-        console.log(err)
-        return res.status(500).json({errors:'something went wrong'})
-    }
-}
-
 sessionController.cancel = async(req,res)=>{
     const errors = validationResult(req)
     if(!errors.isEmpty()){
