@@ -1,3 +1,6 @@
+import Session from '../models/SessionModel.js'
+import User from '../models/UserModel.js'
+
 export const reviewValidationSchema = {
     sessionId: {
         in: ['body'],
@@ -10,7 +13,20 @@ export const reviewValidationSchema = {
         isMongoId: {
             errorMessage: 'Session ID must be a valid Mongo ID'
         },
-        trim: true
+        trim: true,
+        custom: {
+            options: async (value, { req }) => {
+              const session = await Session.findById(value);
+              if (!session) {
+                throw new Error('Session not found');
+              }
+      
+              if (session.studentId.toString() !== req.userId) {
+                throw new Error('You are not authorized to review this session');
+              }
+              return true;
+            }
+          }
     },
     mentorId: {
         in: ['body'],
@@ -36,7 +52,28 @@ export const reviewValidationSchema = {
         isMongoId: {
             errorMessage: 'Student ID must be a valid Mongo ID'
         },
-        trim: true
+        trim: true,
+        custom: {
+            options: async (value, { req }) => {
+              const session = await Session.findById(req.body.sessionId);
+              if (!session) {
+                throw new Error('Session not found');
+              }
+          
+              const studentId = session.studentId.toString();
+              const userId = req.userId;
+              console.log(userId)
+          
+              if (userId !== studentId) {
+                throw new Error('You are not authorized to review this session');
+              }
+              if (req.role !== 'student') {
+                throw new Error('Only students can review sessions');
+              }
+          
+              return true;
+            }
+          }
     },
     rating: {
         in: ['body'],

@@ -20,10 +20,16 @@ import { sessionValidationSchema } from './app/validators/SessionValidationSchem
 import { forgotPasswordValidationSchema } from './app/validators/ForgotPasswordValidationSchema.js'
 import { updateBasicProfileValidationSchema } from './app/validators/ProfileValidationSchema.js';
 import {updateEducationAndBioValidationSchema} from './app/validators/ProfileValidationSchema.js'
-import {PaymentValidationSchema} from './app/validators/PaymentValidationSchema.js'
+import {paymentValidationSchema} from './app/validators/PaymentValidationSchema.js'
+import {reviewValidationSchema} from "./app/validators/ReviewValidationSchema.js"
+import {reviewUpdateValidationSchema} from './app/validators/ReviewValidationSchema.js'
+import {categoryValidationSchema} from './app/validators/CategoryValidationSchema.js'
 
 import userController from './app/controllers/User-Controller.js'
 import sessionController from './app/controllers/SessionController.js'
+import reviewController from './app/controllers/ReviewController.js'
+import paymentController from './app/controllers/PaymentController.js'
+import categoryController from './app/controllers/CategoryController.js'
 
 
 // for account
@@ -31,10 +37,9 @@ app.post('/register',checkSchema(userRegisterValidationSchema),userController.re
 app.post('/login',checkSchema(userLoginValidationSchema),userController.login)
 app.get('/users',userAuthentication,userAuthorization(['admin']),userController.list)
 app.get('/user/:id',userAuthentication,userController.account)
-app.post('/forgot-password',checkSchema(forgotPasswordValidationSchema),userController.forgotPassword)
+app.put('/forgot-password',checkSchema(forgotPasswordValidationSchema),userController.forgotPassword)
 app.put('/user/:id/basic-Profile',userAuthentication,checkSchema(updateBasicProfileValidationSchema),userController.updateBasicProfile)
 app.put('/user/:id/education-bio',userAuthentication,checkSchema(updateEducationAndBioValidationSchema),userController.updateEducationAndBio)
-
 app.delete('/users/:id',userAuthentication,userController.remove)
 
 // for session
@@ -43,7 +48,30 @@ app.post('/create-session',userAuthentication,userAuthorization(['admin','mentor
 app.put('/update-session/:id',userAuthentication,userAuthorization(['admin','mentor']),checkSchema(sessionValidationSchema),sessionController.updateStatus)
 app.put('/session/:id/reschedule',userAuthentication,userAuthorization(['admin','mentor']),checkSchema(sessionValidationSchema),sessionController.reschedule)
 app.put('/session/:id/link',userAuthentication,userAuthorization(['admin','mentor']),checkSchema(sessionValidationSchema),sessionController.updateMeetingLink)
-app.put('/session/:id/update-payment',userAuthentication,userAuthorization(['admin']),checkSchema(PaymentValidationSchema),sessionController.updatePaymentStatus)
+app.put('/session/:id/cancel',userAuthentication,userAuthorization(['admin','mentor']),checkSchema(sessionValidationSchema),sessionController.cancel)
+
+// for review
+app.get('/reviews',userAuthentication,reviewController.list)
+app.post('/reviews',userAuthentication,userAuthorization(['student']),checkSchema(reviewValidationSchema),reviewController.create)
+app.put('/reviews/:id',userAuthentication,userAuthorization(['student']),checkSchema(reviewUpdateValidationSchema),reviewController.update)
+app.delete('/reviews/:id',userAuthentication,userAuthorization(['student']),reviewController.delete)
+
+// for payment
+// app.get('/list-payments',userAuthentication,paymentController.list)
+// app.post('/create-payment',userAuthentication,checkSchema(paymentValidationSchema),paymentController.create)
+// app.put('/update-payment/:id',userAuthentication,checkSchema(paymentValidationSchema),paymentController.updateStatus)
+// app.delete('/delete-payment/:id',userAuthentication,paymentController.delete)
+
+// for category
+app.get('/categories',userAuthentication,checkSchema(categoryValidationSchema),categoryController.list)
+app.post('/create-category',userAuthentication,userAuthorization(['admin']),checkSchema(categoryValidationSchema),categoryController.create)
+app.put('/update-category/:id',userAuthentication,userAuthorization(['admin']),checkSchema(categoryValidationSchema),categoryController.update)
+app.get('/category/:id',userAuthentication,userAuthorization(['admin']),categoryController.getCategory)
+app.delete('/delete-category/:id',userAuthentication,userAuthorization(['admin']),categoryController.delete)
+
+// for payment
+app.post('/rjpayment',paymentController.create)
+
 app.listen(port,()=>{
     console.log(`server is running on port ${port}`)
 })

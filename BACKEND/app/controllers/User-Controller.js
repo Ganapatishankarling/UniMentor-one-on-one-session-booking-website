@@ -41,11 +41,11 @@ userController.register = async(req,res)=>{
 
         await newUser.save()
 
-        // await sendEmail(
-        //     email,
-        //     'welcome to UniMentor',
-        //     `Hi ${name},welcome to UniMentor we are excited to have you here`
-        // )
+        await sendEmail(
+            email,
+            'welcome to UniMentor',
+            `Hi ${name},welcome to UniMentor we are excited to have you here`
+        )
         return res.json(newUser)        
     }catch(err){
         console.log(err)

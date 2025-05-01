@@ -9,20 +9,17 @@ const PaymentSchema = new Schema({
     studentId:{
         type:Schema.Types.ObjectId
     },
-    amount:{
-        type:Number
-    },
     currency:{
         type:String,
         default:'INR'
     },
-    status:{
+    paymentStatus:{
         type:String,
         enum:['pending','completed','refunded'],
         default:'pending'
     },
     paymentMethod:{
-        type:String,
+        type:String,        
     },
     transactionId:{
         type:String

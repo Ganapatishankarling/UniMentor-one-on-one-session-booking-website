@@ -18,11 +18,7 @@ const SessionSchema = new Schema({
         type:String
     },
     meetingLink:String,
-    paymentStatus:{
-        type:String,
-        enum:['pending','completed','refunded'],
-        default:'pending'
-    }
+    
 },{timestamps:true})
 const SessionModel = model('Session',SessionSchema)
 export default SessionModel

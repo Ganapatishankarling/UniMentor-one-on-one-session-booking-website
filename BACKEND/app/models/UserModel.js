@@ -8,6 +8,10 @@ const UserSchema = new Schema({
     university:String,
     bio:String,
     expertiseAreas:String,
+    mentorFee:{
+        type:Number
+    },
+    education:String,
     profileImage:String,
     forgotPasswordToken:String,
     forgotPasswordTokenExpiry:Date,

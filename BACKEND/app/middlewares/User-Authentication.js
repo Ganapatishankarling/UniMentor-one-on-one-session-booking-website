@@ -6,10 +6,10 @@ export async function userAuthentication(req,res,next){
     }
     try{
         const tokenData = jwt.verify(token,'Ganapati@123')
-        req.user={
-            userId:tokenData.userId,
-            role:tokenData.role
-        }
+        
+        req.userId=tokenData.userId,
+        req.role=tokenData.role
+        
         console.log(tokenData.role)
         next()
     }catch(err){
