@@ -5,14 +5,16 @@ const UserSchema = new Schema({
     password:String,
     mobile:Number,
     role:{type:String,enum:['admin','mentor','student']},
-    university:String,
-    bio:String,
-    expertiseAreas:String,
+    university:{type:String,default:''},
+    bio:{type:String,default:''},
+    expertiseAreas:{type:String,default:''},
     mentorFee:{
-        type:Number
+        type:{type:Number,default:''},
     },
-    education:String,
-    profileImage:String,
+    education:{type:String,default:''},
+    profileImage:{type:String,default:''},
+    graduationYear:{type:Number,default:''},
+    experience:{type:Number,default:''},
     forgotPasswordToken:String,
     forgotPasswordTokenExpiry:Date,
     isActive:{type:Boolean,default:false}
