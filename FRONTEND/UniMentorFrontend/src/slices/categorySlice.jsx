@@ -3,7 +3,7 @@ import axios from '../config/axios.jsx'
 
 export const listCategories = createAsyncThunk('categories/listCategories',async()=>{
     try{
-        const response = await axios.get('/category')
+        const response = await axios.get('/categories',{headers:{Authorization:localStorage.getItem('token')}})
         return response.data
     }catch(err){
         console.log(err)
@@ -21,7 +21,7 @@ export const createCategory = createAsyncThunk('categories/createCategory',async
 
 export const deleteCategory = createAsyncThunk('categories/deleteCategory',async(id)=>{
     try{
-        const response = await axios.delete(`/category/${id}`,{headers:{Authorization:localStorage.getItem('token')}})
+        const response = await axios.delete(`/delete-category/${id}`,{headers:{Authorization:localStorage.getItem('token')}})
         return id
     }catch(err){
         console.log(err)
@@ -30,7 +30,7 @@ export const deleteCategory = createAsyncThunk('categories/deleteCategory',async
 
 export const updateCategory = createAsyncThunk('categories/updateCategory',async({id,formData},{})=>{
     try{
-        const response = await axios.put(`/category/${id}`,formData,{headers:{Authorization:localStorage.getItem('token')}});
+        const response = await axios.put(`/update-category/${id}`,formData,{headers:{Authorization:localStorage.getItem('token')}});
         console.log(response.data)
         return response.data
     }catch(err){
@@ -53,7 +53,7 @@ const categorySlice = createSlice({
     },
     extraReducers:(builder)=>{
         builder.addCase(listCategories.fulfilled,(state,action)=>{
-            state.data = action.payload
+            state.categories = action.payload
         })
         builder.addCase(createCategory.fulfilled,(state,action)=>{
             state.data.push(action.payload)
@@ -66,7 +66,9 @@ const categorySlice = createSlice({
             state.editId=''
         })
         builder.addCase(deleteCategory.fulfilled,(state,action)=>{
-            state.data = state.data.filter((ele)=>{
+           
+            
+            state.categories = state.categories.filter((ele)=>{
                 return ele._id !== action.payload
             })
         
