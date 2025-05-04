@@ -1,13 +1,15 @@
 import express from 'express';
 import configureDB from './config/db.js';
-import cors from 'cors'
+import cors from 'cors';
 // import dotenv from 'dotenv'
+import upload from './app/middlewares/upload.js'
 
 
-const app = express()
+const app = express();
 const port = 3047;
 app.use(cors())
 app.use(express.json())
+app.use('/uploads/profileImages',express.static('uploads/profileImages')) // for profile image upload
 configureDB()
 // dotenv.config()
 
@@ -18,9 +20,7 @@ import { userAuthentication } from './app/middlewares/User-Authentication.js'
 import { userAuthorization } from './app/middlewares/User-Authorization.js'
 import { sessionValidationSchema } from './app/validators/SessionValidationSchema.js'
 import { forgotPasswordValidationSchema } from './app/validators/ForgotPasswordValidationSchema.js'
-import { updateBasicProfileValidationSchema } from './app/validators/ProfileValidationSchema.js';
-import {updateEducationAndBioValidationSchema} from './app/validators/ProfileValidationSchema.js'
-import {paymentValidationSchema} from './app/validators/PaymentValidationSchema.js'
+import { profileValidationSchema } from './app/validators/ProfileValidationSchema.js'
 import {reviewValidationSchema} from "./app/validators/ReviewValidationSchema.js"
 import {reviewUpdateValidationSchema} from './app/validators/ReviewValidationSchema.js'
 import {categoryValidationSchema} from './app/validators/CategoryValidationSchema.js'
@@ -38,8 +38,7 @@ app.post('/login',checkSchema(userLoginValidationSchema),userController.login)
 app.get('/users',userAuthentication,userAuthorization(['admin']),userController.list)
 app.get('/account',userAuthentication,userAuthorization(['admin','mentor','student']),userController.account)
 app.put('/forgot-password',checkSchema(forgotPasswordValidationSchema),userController.forgotPassword)
-app.put('/user/:id/basic-Profile',userAuthentication,checkSchema(updateBasicProfileValidationSchema),userController.updateBasicProfile)
-app.put('/user/:id/education-bio',userAuthentication,checkSchema(updateEducationAndBioValidationSchema),userController.updateEducationAndBio)
+app.put('/user/:id/profile',userAuthentication,checkSchema(profileValidationSchema),upload.single('profileImage'),userController.updateProfile)
 app.delete('/users/:id',userAuthentication,userController.remove)
 
 // for session
@@ -64,7 +63,7 @@ app.delete('/reviews/:id',userAuthentication,userAuthorization(['student']),revi
 
 // for category
 app.get('/categories',userAuthentication,checkSchema(categoryValidationSchema),categoryController.list)
-app.post('/create-category',userAuthentication,userAuthorization(['admin']),checkSchema(categoryValidationSchema),categoryController.create)
+app.post('/category',userAuthentication,userAuthorization(['admin']),checkSchema(categoryValidationSchema),categoryController.create)
 app.put('/update-category/:id',userAuthentication,userAuthorization(['admin']),checkSchema(categoryValidationSchema),categoryController.update)
 app.get('/category/:id',userAuthentication,userAuthorization(['admin']),categoryController.getCategory)
 app.delete('/delete-category/:id',userAuthentication,userAuthorization(['admin']),categoryController.delete)
