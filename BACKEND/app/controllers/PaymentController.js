@@ -20,7 +20,6 @@ paymentController.list = async (req, res) => {
     }
 };
 
-paymentController.create = async (req, res) => {
     // const errors = validationResult(req);
     // if (!errors.isEmpty()) {
     //     return res.status(400).json({ errors: errors.array() });
@@ -47,28 +46,29 @@ paymentController.create = async (req, res) => {
     //     return res.status(500).json({ errors: 'Something went wrong' });
     // }
 
-    // try {
-    //     const amount = req.body.amount
-    //     let totalAmount = amount*100
-    //     let options = {
-    //         key: "rzp_test_1jetrYAgo8VSXc",
-    //         amount: totalAmount,
-    //         currency: "INR",
-    //         name: "BOOK MY SHOW",
-    //         description : "Movies Purchase on Rental",
-    //         images:"https://in.bmscdn.com/webin/common/icons/logo.svg",
-    //         handler:() => { //this will be triggered when the payment is done
-    //            alert ("Payment Done")
-    //         },
-    //         theme : {color :"#c4242d"}  // theme we changed 
-    //      };
-    //      let rzp = new window.Razorpay(options) // window we are accessing scriptfile index.html
-    //      rzp.open();
+paymentController.create = async (req, res) => {
+    try {
+        const amount = req.body.amount
+        let totalAmount = amount*100
+        let options = {
+            key: "rzp_test_1jetrYAgo8VSXc",
+            amount: totalAmount,
+            currency: "INR",
+            name: "UniMentor",
+            description : "One on one mentoring session",
+            images:"https://in.bmscdn.com/webin/common/icons/logo.svg",
+            handler:() => { //this will be triggered when the payment is done
+               alert ("Payment Done")
+            },
+            theme : {color :"#c4242d"}  // theme we changed 
+         };
+         let rzp = new window.Razorpay(options) // window we are accessing scriptfile index.html
+         rzp.open();
       
-    // } catch (error) {
-    //     console.error(error);
-    //          return res.status(500).json({ errors: 'Something went wrong' });
-    // }
+     } catch (error) {
+         console.error(error);
+              return res.status(500).json({ errors: 'Something went wrong' });
+     }
 };
 
 

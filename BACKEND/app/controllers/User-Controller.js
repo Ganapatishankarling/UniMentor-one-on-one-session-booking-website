@@ -2,8 +2,7 @@ import {validationResult} from 'express-validator';
 import User from '../models/UserModel.js';
 import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto'
-import sendEmail from '../nodemailer/nodemailer.js'
+import sendEmail from '../nodemailer/nodemailer.js';
 
 
 const userController = {}
@@ -116,72 +115,30 @@ userController.forgotPassword = async(req,res)=>{
     }
 }
 
-userController.updateBasicProfile = async(req,res)=>{
-    const errors = validationResult(req)
-    if(!errors.isEmpty()){
-        return res.status(400).json({errors:errors.array()})
-    }
-    const id = req.params.id
-    const {name,email,mobile} = req.body
-    try{
-        const updatedUser = await User.findByIdAndUpdate(id,{name,email,mobile},{new:true})
-        if(!updatedUser){
-            return res.status(404).json({errors:'User not found'})
-        }
-        res.json(updatedUser)
-    }catch(err){
-        console.log(err)
-        res.status(500).json({errors:'Something went wrong'})
-    }
-}
-
-userController.updateEducationAndBio = async (req, res) => {
+userController.updateProfile = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
-    const id = req.params.id
-    const { university, bio } = req.body
+
+    const id = req.params.id;
+    const updateData = { ...req.body };
+
+    if (req.file) {
+        updateData.profileImage = `/uploads/profileImages/${req.file.filename}`;
+    }
+
     try {
-        const updatedUser = await User.findByIdAndUpdate(
-            id,
-            { university, bio },
-            { new: true }
-        )
+        const updatedUser = await User.findByIdAndUpdate(id, updateData, { new: true });
 
         if (!updatedUser) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ errors: 'User not found' });
         }
 
         res.json(updatedUser);
-
     } catch (err) {
-        res.status(500).json({ error: 'Something went wrong' });
-    }
-}
-
-userController.updateProfileImage = async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
-    const id = req.params.id
-    const { profileImage } = req.body;
-    try {
-        const updatedUser = await User.findByIdAndUpdate(
-            id,
-            { profileImage },
-            { new: true }
-        ).select('-password');
-
-        if (!updatedUser) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        res.json(updatedUser);
-
-    } catch (err) {
-        res.status(500).json({ error: 'Something went wrong' });
+        console.error(err);
+        res.status(500).json({ errors: 'Something went wrong' });
     }
 };
 

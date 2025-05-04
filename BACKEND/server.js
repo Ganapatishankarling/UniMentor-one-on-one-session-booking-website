@@ -36,7 +36,7 @@ import categoryController from './app/controllers/CategoryController.js'
 app.post('/register',checkSchema(userRegisterValidationSchema),userController.register)
 app.post('/login',checkSchema(userLoginValidationSchema),userController.login)
 app.get('/users',userAuthentication,userAuthorization(['admin']),userController.list)
-app.get('/user/:id',userAuthentication,userController.account)
+app.get('/account',userAuthentication,userAuthorization(['admin','mentor','student']),userController.account)
 app.put('/forgot-password',checkSchema(forgotPasswordValidationSchema),userController.forgotPassword)
 app.put('/user/:id/basic-Profile',userAuthentication,checkSchema(updateBasicProfileValidationSchema),userController.updateBasicProfile)
 app.put('/user/:id/education-bio',userAuthentication,checkSchema(updateEducationAndBioValidationSchema),userController.updateEducationAndBio)
