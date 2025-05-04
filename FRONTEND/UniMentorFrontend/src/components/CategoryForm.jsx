@@ -1,5 +1,6 @@
+import React from "react"
 import {useState,useEffect} from "react" //importing useState from react
-import {createCategory,listCategories,updateCategory} from "../slice/CategorySlice.jsx" //importing slice file and its functions
+import {createCategory,listCategories,updateCategory} from "../slices/categorySlice.jsx" //importing slice file and its functions
 import {useDispatch,useSelector} from "react-redux"
 import {useNavigate,useParams} from "react-router-dom"
 export default function CategoryForm(){
@@ -12,13 +13,13 @@ export default function CategoryForm(){
             dispatch(listCategories())
         },[])
 
-        const {data,serverError,editId}=useSelector((state)=>{
-            return state.categories
-        })
+        const {categories,serverError,editId}=useSelector((state)=>state.categories
+)
+        
 
         useEffect(()=>{
-            if(id && data.length>0){
-                const category = data.find((ele)=>{
+            if(id && categories?.length>0){
+                const category = categories.find((ele)=>{
                     return ele._id == id
                 })
                 console.log(category)
@@ -26,12 +27,12 @@ export default function CategoryForm(){
                     setName(category.name)
                 }
             }
-        },[id,data])
+        },[id,categories])
 
         const handleSubmit = async (e)=>{
             e.preventDefault()
             if(id){
-                const category=data.find((ele)=>{
+                const category=categories.find((ele)=>{
                     return ele._id==id
                 })
                 const formData={...category,name:name}
@@ -58,11 +59,11 @@ export default function CategoryForm(){
         <div>
             <div>
                 <div>
-                    <h2>Create New Category</h2>
+                    <h2>{id !== null ? 'Edit Category' : 'Add Category'}</h2>
                     <form onSubmit={handleSubmit}>
                         <input type="text" placeholder="Enter Category Name" value={name} onChange={(e)=>{setName(e.target.value)}}/>
                         <div>
-                            <input type="submit" value='Add Category'/>
+                            <button type="submit">{ id !== null ? 'Update Category' : 'Add Category'}</button>
                             </div>                    
                         </form>
                 </div>
