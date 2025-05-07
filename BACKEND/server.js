@@ -35,7 +35,7 @@ import categoryController from './app/controllers/CategoryController.js'
 // for account
 app.post('/register',checkSchema(userRegisterValidationSchema),userController.register)
 app.post('/login',checkSchema(userLoginValidationSchema),userController.login)
-app.get('/users',userAuthentication,userAuthorization(['admin']),userController.list)
+app.get('/users',userAuthentication,userAuthorization(['admin','student']),userController.list)
 app.get('/account',userAuthentication,userAuthorization(['admin','mentor','student']),userController.account)
 app.put('/forgot-password',checkSchema(forgotPasswordValidationSchema),userController.forgotPassword)
 app.put('/user/:id/profile',userAuthentication,checkSchema(profileValidationSchema),upload.single('profileImage'),userController.updateProfile)
@@ -43,11 +43,12 @@ app.delete('/users/:id',userAuthentication,userController.remove)
 
 // for session
 app.get('/list-sessions',userAuthentication,sessionController.list)
-app.post('/create-session',userAuthentication,userAuthorization(['admin','mentor']),checkSchema(sessionValidationSchema),sessionController.create)
-app.put('/update-session/:id',userAuthentication,userAuthorization(['admin','mentor']),checkSchema(sessionValidationSchema),sessionController.updateStatus)
-app.put('/session/:id/reschedule',userAuthentication,userAuthorization(['admin','mentor']),checkSchema(sessionValidationSchema),sessionController.reschedule)
-app.put('/session/:id/link',userAuthentication,userAuthorization(['admin','mentor']),checkSchema(sessionValidationSchema),sessionController.updateMeetingLink)
-app.put('/session/:id/cancel',userAuthentication,userAuthorization(['admin','mentor']),checkSchema(sessionValidationSchema),sessionController.cancel)
+app.post('/add-session',userAuthentication,userAuthorization(['mentor']),checkSchema(sessionValidationSchema),sessionController.create)
+// app.post('/session/:id/book',userAuthentication,userAuthorization(['student']),sessionController.book)
+app.put('/update-session/:id/status',userAuthentication,userAuthorization(['admin','mentor']),checkSchema(sessionValidationSchema),sessionController.updateStatus)
+app.put('/update-session/:id/reschedule',userAuthentication,userAuthorization(['mentor']),checkSchema(sessionValidationSchema),sessionController.reschedule)
+app.put('/update-session/:id/meetingLink',userAuthentication,userAuthorization(['mentor']),checkSchema(sessionValidationSchema),sessionController.updateMeetingLink)
+app.put('/update-session/:id/cancel',userAuthentication,userAuthorization(['student']),checkSchema(sessionValidationSchema),sessionController.cancel)
 
 // for review
 app.get('/reviews',userAuthentication,reviewController.list)
