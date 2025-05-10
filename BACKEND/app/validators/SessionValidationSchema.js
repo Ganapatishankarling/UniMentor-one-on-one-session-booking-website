@@ -1,32 +1,6 @@
 import Session from '../models/SessionModel.js';
 
 export const sessionValidationSchema = {
-    mentorId:{
-        in:['body'],
-        exists:{
-            errorMessage:'mentorId field is required'
-        },
-        notEmpty:{
-            errorMessage:'mentorId field cannot be empty'
-        },
-        trim:true,
-        isMongoId:{
-            errorMessage:'mentorId must be a valid mongoId'
-        }
-    },
-    studentId:{
-        in:['body'],
-        exists:{
-            errorMessage:'studentId field is required'
-        },
-        notEmpty:{
-            errorMessage:'studentId field cannot be empty'
-        },
-        trim:true,
-        isMongoId:{
-            errorMessage:'studentId must be a valid mongoId'
-        }
-    },
     date:{
         in:['body'],
         exists:{
@@ -61,24 +35,31 @@ export const sessionValidationSchema = {
             errorMessage:'startTime field cannot be empty'
         },
         trim:true,
-        custom:{
-            options:async(value,{req})=>{
-                const inputDate = new Date(req.body.date)
-                const today = new Date()
-                today.setHours(0,0,0,0)
-
-                if(inputDate.toDateString() === today.toDateString()){
-                    const [hours,minutes] = value.split(':').map(Number)
-                    const inputStartTime = new Date()
-                    inputStartTime.setHours(hours,minutes,0,0)
-
-                    const now = new Date()
-
-                    if(inputStartTime < now){
-                        throw new Error('startTime must be in the future if date is today')
+        matches: {
+            options: /^((0?[1-9])|(1[0-2])):([0-5][0-9])\s?(AM|PM)$/i,
+            errorMessage: 'startTime must be in 12-hour format (hh:mm AM/PM)'
+        },
+        custom: {
+            options: async (value, { req }) => {
+                const inputDate = new Date(req.body.date);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+    
+                if (inputDate.toDateString() === today.toDateString()) {
+                    const [time, period] = value.trim().toUpperCase().split(' ');
+                    const [hour12, minute] = time.split(':').map(Number);
+                    let hour = hour12 % 12;
+                    if (period === 'PM') hour += 12;
+    
+                    const inputStartTime = new Date();
+                    inputStartTime.setHours(hour, minute, 0, 0);
+    
+                    const now = new Date();
+                    if (inputStartTime < now) {
+                        throw new Error('startTime must be in the future if date is today');
                     }
                 }
-                return true
+                return true;
             }
         }
     },
@@ -91,33 +72,44 @@ export const sessionValidationSchema = {
             errorMessage:'endTime field cannot be empty'
         },
         trim:true,
-        custom:{
-            options:async(value,{req}) =>{
-                const [startHours,startMinutes] = req.body.startTime.split(':').map(Number)
-                const [endHours,endMinutes] = value.split(':').map(Number)
-
-                const start = startHours * 60 + startMinutes
-                const end = endHours * 60 + endMinutes
-
-                if(end <= start){
-                    throw new Error('endTime must be after startTime')
+        matches: {
+            options: /^((0?[1-9])|(1[0-2])):([0-5][0-9])\s?(AM|PM)$/i,
+            errorMessage: 'endTime must be in 12-hour format (hh:mm AM/PM)'
+        },
+        custom: {
+            options: async (value, { req }) => {
+                // Convert both startTime and endTime to 24-hour minutes
+                const [startTime, startPeriod] = req.body.startTime.trim().toUpperCase().split(' ');
+                const [startHour12, startMinute] = startTime.split(':').map(Number);
+                let startHour = startHour12 % 12;
+                if (startPeriod === 'PM') startHour += 12;
+    
+                const [endTime, endPeriod] = value.trim().toUpperCase().split(' ');
+                const [endHour12, endMinute] = endTime.split(':').map(Number);
+                let endHour = endHour12 % 12;
+                if (endPeriod === 'PM') endHour += 12;
+    
+                const start = startHour * 60 + startMinute;
+                const end = endHour * 60 + endMinute;
+    
+                if (end <= start) {
+                    throw new Error('endTime must be after startTime');
                 }
-
-                const inputDate = new Date(req.body.date)
-                const today = new Date()
-                today.setHours(0,0,0,0)
-
-                if(inputDate.toDateString() === today.toDateString()){
-                    const [hours,minutes] = value.split(':').map(Number)
-                    const inputEndTime = new Date()
-                    inputEndTime.setHours(hours,minutes,0,0)
-
-                    const now = new Date()
-
-                    if(inputEndTime < now){
-                        throw new Error('endTime must be in the future if rescheduling today')
+    
+                const inputDate = new Date(req.body.date);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+    
+                if (inputDate.toDateString() === today.toDateString()) {
+                    const inputEndTime = new Date();
+                    inputEndTime.setHours(endHour, endMinute, 0, 0);
+    
+                    const now = new Date();
+                    if (inputEndTime < now) {
+                        throw new Error('endTime must be in the future if rescheduling today');
                     }
                 }
+                return true;
             }
         }
     },
@@ -131,29 +123,29 @@ export const sessionValidationSchema = {
         },
         trim:true
     },
-    status:{
-        in:['body'],
-        custom:{
-            options:async (value,{req})=>{
-                const userRole = req.user?.role
-                const allowedRoles = ['admin','mentor']
-                if(!allowedRoles.includes(userRole)){
-                    throw new Error('only mentor and admin can update status')
-                }
-                const validStatus = ['pending','confirmed','completed','cancelled']
-                if(!validStatus.includes(value)){
-                    throw new Error('choose one status')
-                }
-                return true
-            }
-        }
-    },
+    // status:{
+    //     in:['body'],
+    //     custom:{
+    //         options:async (value,{req})=>{
+    //             const userRole = req.role
+    //             const allowedRoles = ['admin','mentor']
+    //             if(!allowedRoles.includes(userRole)){
+    //                 throw new Error('only mentor and admin can update status')
+    //             }
+    //             const validStatus = ['pending','confirmed','completed','cancelled']
+    //             if(!validStatus.includes(value)){
+    //                 throw new Error('choose one status')
+    //             }
+    //             return true
+    //         }
+    //     }
+    // },
     meetingLink:{
         in:['body'],
         trim:true,
         custom:{
             options:async (value,{req})=>{
-                const userRole = req.user?.role
+                const userRole = req.role
                 const allowedRoles = ['admin','mentor']
 
                 if(!allowedRoles.includes(userRole)){
