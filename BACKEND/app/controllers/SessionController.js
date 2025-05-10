@@ -38,6 +38,56 @@ sessionController.create = async(req,res)=>{
     }
 }
 
+
+    // sessionController.book = async (req, res) => {
+    //     try {
+    //       const user = req.user;
+    //       const sessionId = req.params.id;
+          
+    //       // Quick validation for authentication and role
+    //       if (!user || user.role !== 'student') {
+    //         return res.status(!user ? 401 : 403).json({ 
+    //           success: false, 
+    //           errors: !user ? 'Not authenticated' : 'Only students can book sessions' 
+    //         });
+    //       }
+      
+    //       const session = await Session.findById(sessionId);
+          
+    //       if (!session) {
+    //         return res.status(404).json({ success: false, errors: 'Session not found' });
+    //       }
+          
+    //       const validationErrors = validateSessionBooking(session, user.id);
+    //       if (validationErrors) {
+    //         return res.status(400).json({ success: false, errors: validationErrors });
+    //       }
+          
+    //       Object.assign(session, {
+    //         studentId: user.id,
+    //         studentName: user.name || user.username || 'Student',
+    //         status: session.status === 'pending' ? 'confirmed' : session.status
+    //       });
+          
+    //       await session.save();
+          
+    //       // await createInstructorNotification(session);
+          
+    //       return res.status(200).json({
+    //         success: true,
+    //         message: 'Session booked successfully',
+    //         data: session
+    //       });
+          
+    //     } catch (error) {
+    //       console.error('Error booking session:', error);
+    //       return res.status(500).json({
+    //         success: false,
+    //         errors: 'Server error while booking session'
+    //       });
+    //     }
+    //   };
+
 sessionController.updateStatus = async(req,res)=>{
     const errors = validationResult(req)
     if(!errors.isEmpty()){
