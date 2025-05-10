@@ -17,6 +17,16 @@ userController.list = async(req,res)=>{
     }
 }
 
+userController.listById = async(req,res)=>{
+    try {
+        const users = await User.findById(req.params.id)
+        if(!users) return res.status(200).json({error:"User not found"})
+        res.json(users)
+    } catch (error) {
+        
+    }
+}
+
 userController.register = async(req,res)=>{
     const errors = validationResult(req)
     if(!errors.isEmpty()){
