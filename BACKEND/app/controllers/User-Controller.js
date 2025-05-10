@@ -22,8 +22,8 @@ userController.listById = async(req,res)=>{
         const users = await User.findById(req.params.id)
         if(!users) return res.status(200).json({error:"User not found"})
         res.json(users)
-    } catch (error) {
-        
+    } catch (err) {
+        console.log(err)
     }
 }
 
