@@ -1,26 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { fetchProfile, updateProfile, clearSuccess } from "../slices/userSlice.jsx";
+import { updateProfile, clearSuccess } from "../slices/userSlice.jsx";
 import { useNavigate } from "react-router-dom";
+import { listCategories } from '../slices/categorySlice.jsx'
 import { fetchUserAccount } from "../slices/accountSlice.jsx";
+import ProfileImageUplaod from "./ProfileImageUpload.jsx";
 
 export default function EditProfile() {
-    console.log("test page");
-    
   const dispatch = useDispatch();
   const navigate = useNavigate();
-//   let profile = ""
+
   useEffect(() => {
-  
-    
     dispatch(fetchUserAccount());
+    dispatch(listCategories())
   }, [dispatch]);
   const { loading, serverError, success ,data:profile} = useSelector((state) => state.account);
-//   const { user } = useSelector((state) => state.users);
+  const { categories } = useSelector((state)=>state.categories)
   
-  
-  
-  // Common fields for all users
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -29,21 +25,20 @@ export default function EditProfile() {
     bio:"",
   });
 
-  // Student specific fields
+  const [profileImageFile,setProfileImageFile] = useState(null)
+
   const [studentData, setStudentData] = useState({
     education: "",
     university: "",
     graduationYear:""
   });
-  console.log("df",studentData);
   
-
-  // Mentor specific fields
   const [mentorData, setMentorData] = useState({
     
     expertiseAreas: "",
     experience: "",
     university: "",
+    categoryId: "",
   });
 
  
@@ -67,9 +62,9 @@ export default function EditProfile() {
       } else if (profile.role === "mentor") {
         setMentorData({
           experience: profile.experience || "",
-       
           university: profile.university || "",
           expertiseAreas:profile.expertiseAreas || "",
+          // categoryId: profile.categoryId || "",
         });
       }
     }
@@ -106,6 +101,11 @@ export default function EditProfile() {
     });
   };
 
+  const handleImageChange = (file) => {
+    setProfileImageFile(file);
+  };
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -117,7 +117,16 @@ export default function EditProfile() {
     } else if (profile?.role === "mentor") {
       updatedData = { ...updatedData, ...mentorData };
     }
-    console.log("abs",updatedData);
+
+    const formDataToSend = new FormData()
+
+    Object.keys(updatedData).forEach(key => {
+      formDataToSend.append(key, updatedData[key])
+    })
+
+    if(profileImageFile){
+      formDataToSend.append('profileImage',profileImageFile)
+    }
     
     const id = profile?._id
     await dispatch(updateProfile({formData:updatedData,id}));
@@ -181,7 +190,7 @@ profile?.role == "student"
               />
             </div>
             
-            <div>
+            {/* <div>
               <label className="block text-gray-700 mb-1">ExpertiseArea</label>
               <input
                 type="text"
@@ -190,7 +199,7 @@ profile?.role == "student"
                 onChange={handleMentorDataChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-            </div>
+            </div> */}
             
             <div>
               <label className="block text-gray-700 mb-1">Experience (Years)</label>
@@ -201,6 +210,22 @@ profile?.role == "student"
                 onChange={handleMentorDataChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+            <div>
+              <label className="block text-gray-700 mb-1">ExpertiseAreas</label>
+              <select
+              name="expertiseAreas"
+              value={mentorData.expertiseAreas}
+              onChange={handleMentorDataChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select a Category</option>
+                {categories && categories.map((category)=>(
+                  <option key={category._id} value={category.name}>
+                    {category.name}
+                  </option>
+                ))}
+                </select>
             </div>
           </div>
         </div>
@@ -225,7 +250,7 @@ profile?.role == "student"
           onClick={() => navigate("/profile")}
           className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
         >
-          Cancel
+          Back
         </button>
       </div>
 
@@ -239,31 +264,11 @@ profile?.role == "student"
       <form onSubmit={handleSubmit}>
         <div className="bg-white shadow-md rounded-lg p-6">
           <div className="mb-6">
-            <div className="flex justify-center mb-4">
-              <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center">
-                {formData.profileImage ? (
-                  <img
-                    src={formData.profileImage}
-                    alt="Profile"
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="text-4xl text-gray-400">
-                    {formData.name?.charAt(0).toUpperCase() || "U"}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 mb-1">Profile Image URL</label>
-              <input
-                type="text"
-                name="profileImage"
-                value={formData.profileImage}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://example.com/image.jpg"
-              />
+            <div>
+            <ProfileImageUplaod
+            profileImage={formData?.profileImage}
+            name={formData.name}
+            onImageChange={handleImageChange}/>
             </div>
           </div>
 
