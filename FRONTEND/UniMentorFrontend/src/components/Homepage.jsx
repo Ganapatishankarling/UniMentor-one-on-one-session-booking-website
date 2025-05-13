@@ -69,7 +69,8 @@ export default function Homepage() {
         const matchesAvailability = availabilityFilter === "all" || 
           (availabilityFilter === "available" && mentorsWithAvailability[mentor._id]);
         
-        return matchesSearch && matchesExpertise && matchesAvailability;
+          const approved = mentor.isActive === "approved"
+        return matchesSearch && matchesExpertise && matchesAvailability && approved;
       })
     : [];
   
@@ -99,12 +100,8 @@ export default function Homepage() {
   };
   
   const handleBookSession = (mentor) => {
-    if (mentorsWithAvailability[mentor._id]) {
-      navigate(`/book-session/${mentor._id}`);
-    } else {
-      toast.info('This mentor has no available sessions');
-    }
-  };
+  navigate(`/book-session/${mentor._id}`);
+};
   
   const handleProfileClick = () => {
     setProfileDropdownOpen(!profileDropdownOpen);
@@ -122,7 +119,6 @@ export default function Homepage() {
   };
 
   const handleLogout = () => {
-    // dispatch(logout());
     navigate("/login");
     setProfileDropdownOpen(false);
   };
@@ -406,7 +402,7 @@ export default function Homepage() {
         </div>
         
         {/* Mentors Grid */}
-        {filteredMentors.length > 0 ? (
+        {  filteredMentors.length  > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredMentors.map((mentor) => (
               <div key={mentor._id} className="bg-white rounded-xl shadow-lg overflow-hidden transition duration-300 transform hover:scale-[1.02] hover:shadow-xl">
