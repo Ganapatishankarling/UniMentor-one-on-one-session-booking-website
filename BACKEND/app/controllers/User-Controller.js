@@ -152,6 +152,40 @@ userController.updateProfile = async (req, res) => {
     }
 };
 
+userController.updateMentorIsActive = async(req,res)=>{
+    try {
+        const user = await User.findById(req.params.id)
+        
+        if (!user) {
+            return res.status(404).json({ errors: 'User not found' });
+        }
+        const status = req.body.status
+        user.mentorIshAvailability = status
+        await user.save()
+         res.json({message:'Status changed successfully'})
+    } catch (error) {
+         console.log(error)
+        res.status(500).json({errors:'Something went wrong'})
+    }
+}
+
+userController.updateAdminApproval = async(req,res)=>{
+    try {
+        const user = await User.findById(req.params.id)
+        
+        if (!user) {
+            return res.status(404).json({ errors: 'User not found' });
+        }
+        const status = req.body.status
+        user.isActive = status
+        await user.save()
+         res.json({message:'Admin Status changed successfully'})
+    } catch (error) {
+         console.log(error)
+        res.status(500).json({errors:'Something went wrong',message:error.message})
+    }
+}
+
 userController.remove = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
