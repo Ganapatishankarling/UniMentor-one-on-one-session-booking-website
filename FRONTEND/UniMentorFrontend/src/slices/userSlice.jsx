@@ -10,6 +10,16 @@ export const listUsers = createAsyncThunk('users/listUsers',async()=>{
         console.log(err)
     }
 })
+
+export const getUserById = createAsyncThunk('/users/getUserById',async(id,{rejectWithValue})=>{
+    try{
+        const response = await axios.get(`/users/${id}`,{headers:{Authorization:localStorage.getItem('token')}})
+        return response.data
+    }catch(err){
+        return rejectWithValue(err.response?.data) || {message:err.message}
+
+    }
+})
 export const createUser=createAsyncThunk('users/createUser',async(formData)=>{
     try{
         const response = await axios.post('/category',formData,{headers:{Authorization:localStorage.getItem('token')}})
@@ -43,9 +53,7 @@ export const fetchProfile = createAsyncThunk('users/fetchProfile',async(__,{reje
 export const updateProfile = createAsyncThunk('users/updateProfile',async({formData,id},{rejectWithValue})=>{
     try{
 
-        const response = await axios.put(`/user/${id}/profile`,formData,{headers:{Authorization:localStorage.getItem('token')}})
-       
-        
+        const response = await axios.put(`/user/${id}/profile`,formData,{headers:{Authorization:localStorage.getItem('token')}}) 
         return response.data
     }catch(err){
         console.log(err)
@@ -56,17 +64,20 @@ const userSlice = createSlice({
     name:'users',
     initialState:{
         users:[],
+        user:[],
         serverError:null,
+        loading:false,
+        isLoggedIn:false,
         profile:null,
         success:false
     },
     reducers:{
         login:(state,action)=>{
-            state.user=action.payload
+            state.users=action.payload
             state.isLoggedIn=true
         },
         logout:(state)=>{
-            state.user=null
+            state.users=null
             state.isLoggedIn=false
         },
         clearErrors:(state)=>{
@@ -77,6 +88,21 @@ const userSlice = createSlice({
         },
     },
     extraReducers:(builder)=>{
+        builder.addCase(listUsers.fulfilled,(state,action)=>{
+            state.users = action.payload
+        })
+        builder.addCase(getUserById.pending, (state) => {
+            state.loading = true
+          })
+          builder.addCase(getUserById.fulfilled, (state, action) => {
+            state.loading = false
+            state.user = action.payload
+            state.serverError = null
+          })
+          builder.addCase(getUserById.rejected, (state, action) => {
+            state.loading = false
+            state.serverError = action.payload
+          })
         builder.addCase(fetchProfile.pending,(state,action)=>{
             state.loading = true
         })
