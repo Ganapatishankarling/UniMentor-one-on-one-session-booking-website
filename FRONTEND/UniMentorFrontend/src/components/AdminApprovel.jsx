@@ -6,9 +6,6 @@ import { listUsers } from "../slices/userSlice";
 
 export default function AdminApproval() {
   const dispatch = useDispatch();
-  // const [mentors, setMentors] = useState([]);
-  // const [loading, setLoading] = useState(true);
-  // const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("pending");
   const [selectedMentor, setSelectedMentor] = useState(null);
   const [viewMode, setViewMode] = useState("list"); // list or detail
@@ -16,26 +13,6 @@ export default function AdminApproval() {
 
     
   let mentors = users && users.length > 0 ? users.filter(user => user.role === "mentor") : [];  
-  // Fetch all mentors
-  // useEffect(() => {
-  //   const fetchMentors = async () => {
-  //     try {
-  //       setLoading(true);
-  //       const response = await axios.get("/api/users");
-  //       // Filter only mentors
-  //       const mentorsList = response.data.filter(user => user.role === "mentor");
-  //       setMentors(mentorsList);
-  //       setLoading(false);
-  //     } catch (err) {
-  //       setError("Failed to load mentors");
-  //       setLoading(false);
-  //       toast.error("Failed to load mentors");
-  //     }
-  //   };
-
-  //   fetchMentors();
-  // }, []);
-
     useEffect(() => {
       dispatch(listUsers());
      
@@ -77,12 +54,6 @@ export default function AdminApproval() {
     try {
       const response = await axios.patch(`/adminApprove/${mentorId}`, { status },{headers:{Authorization:localStorage.getItem('token')}});
 dispatch(listUsers())
-      // Update the local state
-      // setMentors(prevMentors => 
-      //   prevMentors.map(mentor => 
-      //     mentor._id === mentorId ? { ...mentor, isActive: status } : mentor
-      //   )
-      // );
       
       // If in detail view, update the selected mentor
       if (selectedMentor && selectedMentor._id === mentorId) {
