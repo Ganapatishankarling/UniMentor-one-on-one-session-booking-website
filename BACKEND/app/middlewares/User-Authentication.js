@@ -14,6 +14,6 @@ export async function userAuthentication(req,res,next){
         next()
     }catch(err){
         console.log(err)
-        return res.status(401).json({error:'unauthorized access'})
+        return res.status(401).json({error:'Unauthorized Access'})
     }
 }
