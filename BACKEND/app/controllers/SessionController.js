@@ -3,19 +3,40 @@ import Session from '../models/SessionModel.js';
 import User from '../models/UserModel.js';
 
 const sessionController = {}
+function convertTo24Hour(timeStr) {
+    const [time, modifier] = timeStr.split(" ");
+    let [hours, minutes] = time.split(":").map(Number);
+
+    if (modifier === "PM" && hours !== 12) {
+        hours += 12;
+    }
+    if (modifier === "AM" && hours === 12) {
+        hours = 0;
+    }
+
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
 
 sessionController.list = async(req,res)=>{
     try{
-        const user = await User.find({mentorId:req.userId})
+        const user = await User.findOne({_id: req.userId}) // Fixed: use findOne instead of find
         console.log(req.userId)
         if(!user){
             return res.status(400).json({errors:'user not found'})
         }
+        
         let filter = {}
-        if(req.role==='mentor')filter.mentorId = user._id
-        if(req.role==='student')filter.studentId = user._id
+        if(req.role==='mentor') filter.mentorId = user._id
+        if(req.role==='student') filter.studentId = user._id
+        
         const sortOption = req.role == 'admin' ? {createdAt:-1} : {createdAt:1}
-        const session = await Session.find(filter).sort(sortOption)
+        
+        // Populate mentor information to get mentor's name
+        const session = await Session.find(filter)
+            .populate('mentorId', 'username email') // Add fields you want from mentor
+            .sort(sortOption)
+            
         return res.json(session)
     }catch(err){
         console.log(err)
@@ -26,7 +47,8 @@ sessionController.listSessionById = async(req,res)=>{
     try {
         const sessions = await Session.find({mentorId:req.params.id})
         console.log("ses",sessions);
-        
+       
+
         return res.json(sessions)
     } catch (error) {
           return res.status(500).json({errors:'something went wrong',mesg:error?.message})
@@ -35,16 +57,33 @@ sessionController.listSessionById = async(req,res)=>{
 sessionController.listStudentSessionById = async(req, res) => {
   try {
     // Get the current student's ID from the authenticated user
-    const studentId = req.user._id;
+    const studentId = req.params.id;
     
     // Find sessions where this student is registered
     const sessions = await Session.find({ 
-      mentorId: req.params.id,
+     
       studentId: studentId
     });
-    
-    console.log("student sessions", sessions);
-    return res.json({ sessions });
+     const date = new Date()
+            const updateSessionStatus = await Promise.all(sessions.map(async(session)=>{
+            const datePart = new Date(session.date).toISOString().split('T')[0]; // "2025-05-16"
+    const endTime24 = convertTo24Hour(session.endTime); // e.g., "22:53"
+    const endDateTime = new Date(`${datePart}T${endTime24}:00`); 
+            
+           const shouldBeCompleted = date > endDateTime;
+
+    // Update only if needed
+    if (shouldBeCompleted && session.status !== 'completed') {
+        session.status = 'completed';
+        await session.save();
+    } else if (!shouldBeCompleted && session.status === 'completed') {
+        session.status = 'pending'; // Optional: reset to pending if somehow marked completed early
+        await session.save();
+    }
+            return session
+        }))
+    console.log("student sessions", updateSessionStatus);
+    return res.json(updateSessionStatus);
   } catch (error) {
     return res.status(500).json({ errors: 'something went wrong', mesg: error?.message });
   }
