@@ -41,22 +41,6 @@ console.log("s",currentUser);
     dispatch(listUsers())
   }, [dispatch])
 
-  // Fetch all users
-  // const fetchUsers = async () => {
-  //   setUserLoading(true)
-  //   try {
-  //     const response = await axios.get('/admin/users', {
-  //       headers: { Authorization: localStorage.getItem('token') }
-  //     })
-  //     setUsers(response.data)
-  //   } catch (err) {
-  //     console.error('Error fetching users:', err)
-  //     toast.error('Failed to load users')
-  //   } finally {
-  //     setUserLoading(false)
-  //   }
-  // }
-
   // Fetch all sessions
   const fetchSessions = async () => {
     setSessionLoading(true)
