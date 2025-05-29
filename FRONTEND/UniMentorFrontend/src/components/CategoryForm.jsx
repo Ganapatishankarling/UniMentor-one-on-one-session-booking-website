@@ -1,8 +1,8 @@
-import React from "react"
-import {useState,useEffect} from "react" //importing useState from react
-import {createCategory,listCategories,updateCategory} from "../slices/categorySlice.jsx" //importing slice file and its functions
-import {useDispatch,useSelector} from "react-redux"
-import {useNavigate,useParams} from "react-router-dom"
+import React from 'react'
+import { useState, useEffect } from 'react'
+import { createCategory, listCategories, updateCategory } from '../slices/categorySlice.jsx'
+import { useDispatch, useSelector } from 'react-redux'
+import { useNavigate, useParams } from 'react-router-dom'
 export default function CategoryForm(){
     const [ name,setName] = useState('')
         const dispatch = useDispatch()
@@ -56,18 +56,37 @@ export default function CategoryForm(){
             
         }
     return (
-        <div>
-            <div>
-                <div>
-                    <h2>{id !== null ? 'Edit Category' : 'Add Category'}</h2>
-                    <form onSubmit={handleSubmit}>
-                        <input type="text" placeholder="Enter Category Name" value={name} onChange={(e)=>{setName(e.target.value)}}/>
-                        <div>
-                            <button type="submit">{ id !== null ? 'Update Category' : 'Add Category'}</button>
-                            </div>                    
-                        </form>
-                </div>
-            </div>
+        <div className="flex justify-center items-center min-h-screen bg-gray-50">
+  <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-center text-gray-800">
+        {id !== null ? 'Edit Category' : 'Add Category'}
+      </h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="categoryName" className="block text-sm font-medium text-gray-700">
+            Category Name
+          </label>
+          <input 
+            type="text" 
+            id="categoryName"
+            placeholder="Enter Category Name" 
+            value={name} 
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
         </div>
+        <div className="pt-2">
+          <button 
+            type="submit"
+            className="w-full px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+          >
+            {id !== null ? 'Update Category' : 'Add Category'}
+          </button>
+        </div>                    
+      </form>
+    </div>
+  </div>
+</div>
     )
 }
