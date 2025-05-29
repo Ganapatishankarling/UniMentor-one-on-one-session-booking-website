@@ -48,6 +48,49 @@ export default function SessionBooking() {
       )
     );
   };
+
+  const handleChange = async(sessionId,mentorId,studentId,currency,paymentStatus,paymentMethod,transactionId,amount)=>{
+    try {
+
+    // Log the payment update
+    console.log(`Payment update for session ${sessionId}:`, {
+      mentorId,
+      studentId,
+      currency,
+      paymentStatus,
+      paymentMethod,
+      transactionId
+    });
+
+    // Update payment status in database
+    const paymentData = {
+      sessionId,
+      mentorId,
+      studentId,
+      currency, // Default to INR if not specified
+      paymentStatus,
+      method: paymentMethod,
+      transactionId,
+      amount
+    };
+
+    console.log("pa",paymentData);
+   const res =  await axios.post("/rjpayment",paymentData)
+  
+ 
+    return {
+      success: true,
+      data: res
+    };
+  } catch (error) {
+    console.error("Error in handleChange:", error);
+    return {
+      success: false,
+      error: error.message || "An unknown error occurred"
+    };
+  }
+  }
+
   function convertTo12Hour(time24) {
   let [hour, minute] = time24.split(':').map(Number);
   const period = hour >= 12 ? 'PM' : 'AM';
@@ -55,9 +98,10 @@ export default function SessionBooking() {
   return `${hour < 10 ? '0' + hour : hour}:${minute < 10 ? '0' + minute : minute} ${period}`;
 }
 
-const rjpay = ( amount, session ) => {
+  
+const rjpay = (amount, session) => {
   const totalAmount = amount * 100;
-console.log(amount);
+  const transactionId = 'txn_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
 
   const options = {
     key: "rzp_test_1jetrYAgo8VSXc",
@@ -66,12 +110,14 @@ console.log(amount);
     name: "Unimentor Book Session",
     description: "Student session booking",
     image: "https://in.bmscdn.com/webin/common/icons/logo.svg",
-    handler: async () => {
+
+    handler: async function (response) {
       try {
-        const { _id, date, startTime, endTime } = session;
+        const { _id, date, startTime, endTime, mentorId } = session;
         const strttime = convertTo12Hour(startTime);
         const edtime = convertTo12Hour(endTime);
 
+        // 1. Update session on server
         await axios.put(
           `/update-session/${_id}`,
           {
@@ -87,6 +133,18 @@ console.log(amount);
           }
         );
 
+        // 2. Call handleChange with Success
+        handleChange(
+          _id,
+          mentorId,
+          data?._id,
+          "INR",
+          "Success",
+          "Razorpay",
+          transactionId,
+          amount
+        );
+
         toast.success("Session booked successfully!");
         navigate("/sessions");
       } catch (error) {
@@ -94,13 +152,31 @@ console.log(amount);
         toast.error("Failed to book session. Please try again.");
       }
     },
+
     theme: { color: "#c4242d" },
   };
 
   const rzp = new window.Razorpay(options);
+
+
+  rzp.on('payment.failed', function (response) {
+    const { _id, mentorId } = session;
+    handleChange(
+      _id,
+      mentorId,
+      data?._id,
+      "INR",
+      "Failed",
+      "Razorpay",
+      transactionId
+    );
+    toast.error("Payment failed. Please try again.");
+  });
+
   rzp.open();
 };
-  
+
+
   const goBack = () => {
     navigate(-1);
   };

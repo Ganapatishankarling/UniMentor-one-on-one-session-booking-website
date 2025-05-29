@@ -12,6 +12,7 @@ export default function SessionForm(){
     const [formData,setFormData] = useState({
         topic:'',
         meetingLink:'',
+        duration:'',
         sessionFee:''
     })
     const [loading, setLoading] = useState(false)
@@ -77,6 +78,20 @@ const { data } = useSelector((state) => state.account);
                         className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                         placeholder="https://meet.google.com/..."/>
                         <p className="text-gray-500 text-xs mt-1">You can add or update this later</p>
+                    </div>
+
+                    <div className="mb-4">
+                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                            Duration:
+                        </label>
+                        <input 
+                        type="number"
+                        name="duration"
+                        value={formData.duration}
+                        onChange={handleChange}
+                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        placeholder="E.g., 15min,60min etc"
+                        />
                     </div>
 
                     <div className="mb-6">
