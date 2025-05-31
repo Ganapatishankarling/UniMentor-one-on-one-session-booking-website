@@ -8,7 +8,7 @@ export default function Category(){
     const dispatch=useDispatch()
     const navigate=useNavigate()
    
-    const {serverError,editId,categories} = useSelector((state)=>state.categories);
+    const {categories} = useSelector((state)=>state.categories);
     
     
     useEffect(()=>{
