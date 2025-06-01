@@ -117,10 +117,6 @@ sessionController.update=async(req,res)=>{
             if(!session){
                 return res.status(400).json({errors:'Session not found'})
             }
-//             const updateData = Object.entries({status,date,startTime,endTime,topic,studentId})
-//             .filter(({_, value})=> value !== undefined)
-//             .reduce((acc, [key, value])=> ({ ...acc,[key]:value}),{})
-// console.log("up",updateData);
 
             const updatedSession = await Session.findByIdAndUpdate(id,{studentId:req.body.studentId,...req.body},{new:true})
             return res.json(updatedSession)
@@ -130,142 +126,58 @@ sessionController.update=async(req,res)=>{
         }
     }
 
-
-    // sessionController.book = async (req, res) => {
-    //     try {
-    //       const user = req.user;
-    //       const sessionId = req.params.id;
-          
-    //       // Quick validation for authentication and role
-    //       if (!user || user.role !== 'student') {
-    //         return res.status(!user ? 401 : 403).json({ 
-    //           success: false, 
-    //           errors: !user ? 'Not authenticated' : 'Only students can book sessions' 
-    //         });
-    //       }
-      
-    //       const session = await Session.findById(sessionId);
-          
-    //       if (!session) {
-    //         return res.status(404).json({ success: false, errors: 'Session not found' });
-    //       }
-          
-    //       const validationErrors = validateSessionBooking(session, user.id);
-    //       if (validationErrors) {
-    //         return res.status(400).json({ success: false, errors: validationErrors });
-    //       }
-          
-    //       Object.assign(session, {
-    //         studentId: user.id,
-    //         studentName: user.name || user.username || 'Student',
-    //         status: session.status === 'pending' ? 'confirmed' : session.status
-    //       });
-          
-    //       await session.save();
-          
-    //       // await createInstructorNotification(session);
-          
-    //       return res.status(200).json({
-    //         success: true,
-    //         message: 'Session booked successfully',
-    //         data: session
-    //       });
-          
-    //     } catch (error) {
-    //       console.error('Error booking session:', error);
-    //       return res.status(500).json({
-    //         success: false,
-    //         errors: 'Server error while booking session'
-    //       });
-    //     }
-    //   };
-
-// sessionController.updateStatus = async(req,res)=>{
-//     const errors = validationResult(req)
-//     if(!errors.isEmpty()){
-//         return res.status(400).json({errors:errors.array()})
-//     }
-//     const id = req.params.id
-//     const {status} = req.body
-//     try{
-//         const session = await Session.findByIdAndUpdate(id,{status},{new:true})
-
-//         if(!session){
-//             return res.status(404).json({errors:'Session not found'})
-//         }
-//         return res.json(session)
-//     }catch(err){
-//         console.log(err)
-//         return res.status(500).json({errors:'something went wrong'})
-//     }
-// }
-
-// sessionController.reschedule = async(req,res)=>{
-//     const errors = validationResult(req)
-//     if(!errors.isEmpty()){
-//         return res.status(400).json({errors:errors.array()})
-//     }
-//     const id = req.params.id
-//     const {date,startTime,endTime}=req.body
-//     try{
-//         const session = await Session.findByIdAndUpdate(id,{date,startTime,endTime},{new:true})
-//         if(!session){
-//             return res.status(404).json({errors:'Session not found'})
-//         }
-//         session.date = date
-//         session.startTime = startTime
-//         session.endTime = endTime
-//         await session.save()
+sessionController.reschedule = async(req,res)=>{
+    const errors = validationResult(req)
+    if(!errors.isEmpty()){
+        return res.status(400).json({errors:errors.array()})
+    }
+    const id = req.params.id
+    const {date,startTime,endTime,duration}=req.body
+    try{
+        const session = await Session.findByIdAndUpdate(id,{date,startTime,endTime,duration},{new:true})
+        if(!session){
+            return res.status(404).json({errors:'Session not found'})
+        }
+        session.date = date
+        session.startTime = startTime
+        session.endTime = endTime
+        session.duration = duration 
+        await session.save()
         
-//         return res.json(session)
-//     }catch(err){
-//         console.log(err)
-//         return res.status(500).json({errors:'something went wrong'})
-//     }
-// }
+        return res.json(session)
+    }catch(err){
+        console.log(err)
+        return res.status(500).json({errors:'something went wrong'})
+    }
+}
 
-// sessionController.updateTopic = async(req,res)=>{
-//     const errors = validationResult(req)
-//     if(!errors.isEmpty()){
-//         return res.status(400).json({error:errors.array()})
-//     }
-//     const id = req.params.id
-//     const {topic} = req.body
-//     try{
-//         const session = await Session.findByIdAndUpdate(id,{topic},{new:true})
-//         if(!session){
-//             return res.status(404).json({errors:'Session not found'})
-//         }
-//         session.topic = topic
-//         await session.save()
-//         return res.json(session)
-//     }catch(err){
-//         console.log(err)
-//         return res.status(500).json({errors:'something went wrong'})
-//     }
-// }
-
-// sessionController.updateMeetingLink = async(req,res)=>{
-//     const errors = validationResult(req)
-//     if(!errors.isEmpty()){
-//         return res.status(400).json({errors:errors.array()})
-//     }
-//     const id = req.params.id
-//     const {meetingLink} = req.body
-//     try{
-//         const session = await Session.findByIdAndUpdate(id,{meetingLink},{new:true})
-//         if(!session){
-//             return res.status(404).json({errors:'Session not found'})
-//         }
-//         session.meetingLink=meetingLink
-//         await session.save()
-
-//         return res.json(session)
-//     }catch(err){
-//         console.log(err)
-//         return res.status(500).json({errors:'something went wrong'})
-//     }
-// }
+sessionController.delete = async (req, res) => {
+    const errors = validationResult(req)
+    if(!errors.isEmpty()){
+        return res.status(400).json({errors: errors.array()})
+    }
+    
+    const id = req.params.id
+    
+    try {
+        const session = await Session.findById(id)
+        
+        if(!session){
+            return res.status(404).json({errors: 'Session not found'})
+        }
+        
+        // Only allow deletion of completed or cancelled sessions
+        if(session.status !== 'completed' && session.status !== 'cancelled'){
+            return res.status(400).json({errors: 'Can only delete completed or cancelled sessions'})
+        }
+        
+        await Session.findByIdAndDelete(id)
+        return res.json({message: 'Session deleted successfully'})
+    } catch(err) {
+        console.log(err)
+        return res.status(500).json({errors: 'Something went wrong'})
+    }
+}
 
 sessionController.cancel = async(req,res)=>{
     const errors = validationResult(req)

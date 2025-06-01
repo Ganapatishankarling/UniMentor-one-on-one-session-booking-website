@@ -1,8 +1,10 @@
 import {validationResult} from 'express-validator';
 import User from '../models/UserModel.js';
+import crypto from 'crypto'
 import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import sendEmail from '../nodemailer/nodemailer.js';
+import {sendVerificationEmail,sendWelcomeEmail,sendResetPasswordEmail} from '../nodemailer/emails.js'
+import { error } from 'console';
 
 
 const userController = {}
@@ -28,50 +30,51 @@ userController.listById = async(req,res)=>{
 }
 
 userController.register = async(req,res)=>{
-    const errors = validationResult(req)
-    if(!errors.isEmpty()){
-        return res.status(400).json({errors:errors.array()})
-    }
-    const {name,email,password,mobile,role} = req.body;
+    // const errors = validationResult(req)
+    // if(!errors.isEmpty()){
+    //     return res.status(400).json({errors:errors.array()})
+    // }
+    const {name,email,password,mobile,role,passcode} = req.body;
        
     try{
-        const totalUser = await User.countDocuments() 
-        const newUser = new User({
-            name,
-            email,
-            mobile
-        })
-        newUser.role = totalUser === 0 ? 'admin' : role
+        const user = new User({name,email,password,mobile,role})
+        if(role == 'student' || role == 'admin'){
+            user.isActive = true
+        }else{
+            user.isActive = false
+        }
 
+        if(user.role === "admin" && passcode != "AdminPass"){
+            return res.status(401).json({message:'Enter valid passcode'})
+        }
         const salt = await bcryptjs.genSalt()
-        newUser.password = await bcryptjs.hash(password,salt)        
+        const hashedPassword = await bcryptjs.hash(password, salt);
+        user.password = hashedPassword;
 
-        newUser.isActive = totalUser === 0 || role === 'student';        
+        await user.save();
 
-        await newUser.save()
-
-        await sendEmail(
-            email,
-            'welcome to UniMentor',
-            `Hi ${name},welcome to UniMentor we are excited to have you here`
-        )
-        return res.json(newUser)        
+        // sendVerificationEmail({email:user.email,message:'Verify your account',verificationToken:verificationToken});
+        return res.status(201).json(user);
     }catch(err){
         console.log(err)
-        return res.status(500).json({errors:'Something went wrong'})
+        return res.status(500).json({errors:err.message})
     }
 }
 
 userController.login = async(req,res)=>{
-    const errors = validationResult(req)
-    if(!errors.isEmpty()){
-        return res.status(400).json({errors:errors.array()})
-    }
+    // const errors = validationResult(req)
+    // if(!errors.isEmpty()){
+    //     return res.status(400).json({errors:errors.array()})
+    // }
     const {email,password} = req.body
     try{
         const user = await User.findOne({email})
         if(!user){
             return res.status(400).json({error:'Invalid email or password'})
+        }
+
+        if(!user.isVerified){
+            return res.json({message:"please verify your account"})
         }
         const isMatch = await bcryptjs.compare(password,user.password)
         if(!isMatch){
@@ -82,6 +85,7 @@ userController.login = async(req,res)=>{
             role:user.role
         }
         const token = jwt.sign(tokenData,'Ganapati@123',{expiresIn:'7d'})
+        await user.save()
         return res.json({token})
     }catch(err){
         console.log(err)
@@ -104,25 +108,64 @@ userController.account = async(req,res)=>{
 }
 
 userController.forgotPassword = async(req,res)=>{
-    const errors = validationResult(req)
-    if(!errors.isEmpty()){
-        return res.status(400).json({errors:errors.array()})
-    }
-    const {email,newPassword} = req.body
-    try{
-        const user = await User.findOne({email})
-        if(!user){
-            return res.status(404).json({errors:'User not found'})
-        }
-        const salt = await bcryptjs.genSalt()
-        user.password = await bcryptjs.hash(newPassword,salt)
-        await user.save()
+  const {email} = req.body;
+  try{
+     const user = await User.findOne({email});
+     if(!user){
+      return res.status(404).json({error:"user not found"});
+     }
 
-        res.json({message:'Password reset successfully'})
-    }catch(err){
-        console.logh(err)
-        res.status(500).json({errors:'Something went wrong'})
-    }
+     // Generate a secure random token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      sendResetPasswordEmail({token:resetToken,email:user.email});
+
+     // Hash it before storing in DB for security
+      const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+     // Set expiry time (e.g., 15 minutes from now)
+      const tokenExpiry = Date.now() + 5 * 60 * 1000; // 5 mins
+
+     // Save to user document (example)
+      user.passwordResetToken = hashedToken;
+      user.passwordResetExpires = tokenExpiry;
+
+      await user.save();
+      return res.json({success:true,message:`reset token has be sent your ${user.email}`});
+
+  }catch(error){
+    console.log(error)
+    return res.status(500).json({success:false,message:"internal server error"})
+  }
+}
+
+//reset password
+userController.resetPassword = async(req,res)=>{
+  const { token, newPassword } = req.body;
+  try {
+      // Hash token to match what was stored
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+        // Find user with matching token and check expiry
+        const user = await User.findOne({
+           passwordResetToken: hashedToken,
+           passwordResetExpires: { $gt: Date.now() }
+         });
+
+      if (!user) {
+        return res.status(400).json({ error: "Invalid or expired token" });
+      }
+
+      // Update password and clear reset fields
+       const salt = await bcryptjs.genSalt();
+       const hashedPassword = await bcryptjs.hash(newPassword,salt);
+       user.password = hashedPassword;
+       user.passwordResetToken = undefined;
+       user.passwordResetExpires = undefined;
+       await user.save();
+       return res.json({success:true,message:'password chenged succefully'})
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({success:false,message:"internal server error"})
+  }
 }
 
 userController.updateProfile = async (req, res) => {
@@ -168,6 +211,7 @@ userController.updateMentorIsActive = async(req,res)=>{
         res.status(500).json({errors:'Something went wrong'})
     }
 }
+
 
 userController.updateAdminApproval = async(req,res)=>{
     try {
