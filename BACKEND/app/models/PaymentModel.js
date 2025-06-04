@@ -13,9 +13,10 @@ const PaymentSchema = new Schema({
         type:String,
         default:'INR'
     },
+    amount:{type:String},
     paymentStatus:{
         type:String,
-        enum:['pending','completed','refunded'],
+        enum:['pending','Success','refunded'],
         default:'pending'
     },
     paymentMethod:{

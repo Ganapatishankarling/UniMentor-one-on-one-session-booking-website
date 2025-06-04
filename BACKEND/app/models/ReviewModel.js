@@ -1,8 +1,5 @@
 import {Schema,model} from 'mongoose';
 const ReviewSchema = new Schema({
-    sessionId:{
-        type:Schema.Types.ObjectId
-    },
     mentorId:{
         type:Schema.Types.ObjectId
     },
