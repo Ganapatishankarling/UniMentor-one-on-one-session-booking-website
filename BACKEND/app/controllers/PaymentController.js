@@ -1,7 +1,5 @@
 import { validationResult } from 'express-validator';
 import PaymentModel from '../models/PaymentModel.js';
-import Session from '../models/SessionModel.js';
-
 
 const paymentController = {};
 
@@ -86,6 +84,5 @@ paymentController.delete = async (req, res) => {
         return res.status(500).json({ errors: 'Something went wrong' });
     }
 };
-
 
 export default paymentController;
