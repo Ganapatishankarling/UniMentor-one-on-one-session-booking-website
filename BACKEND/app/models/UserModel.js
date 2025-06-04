@@ -8,16 +8,33 @@ const UserSchema = new Schema({
     university:{type:String,default:''},
     bio:{type:String,default:''},
     expertiseAreas:{type:String,default:''},
-    mentorFee:{
-        type:{type:Number,default:''},
-    },
     education:{type:String,default:''},
+    status:{type:String,enum:['pending','approved','rejected'],default:'pending'},
     profileImage:{type:String,default:''},
+        isRejected:{
+        type:Boolean,
+        default:false
+    },
+    isVerified:{
+        type:Boolean,
+        default:true
+    },
+    verifiedBadge:{
+        type:String
+    },
+    
     graduationYear:{type:Number,default:''},
     experience:{type:Number,default:''},
-    forgotPasswordToken:String,
-    forgotPasswordTokenExpiry:Date,
-    isActive:{type:Boolean,default:false}
+    review:String,
+    rating:{
+        type:Number,
+        min:1,
+        max:5
+    },
+    passwordResetToken:String,
+    passwordResetExpiry:{type:Date},
+    mentorIshAvailability:{type:Boolean,default:true},
+    isActive:{type:String,default:"pending"}
 },{timestamps:true})
 const UserModel = model('User',UserSchema)
 export default UserModel
