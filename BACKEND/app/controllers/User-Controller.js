@@ -3,9 +3,7 @@ import User from '../models/UserModel.js';
 import crypto from 'crypto'
 import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import {sendVerificationEmail,sendWelcomeEmail,sendResetPasswordEmail} from '../nodemailer/emails.js'
-import { error } from 'console';
-
+import {sendResetPasswordEmail} from '../nodemailer/emails.js'
 
 const userController = {}
 
@@ -30,10 +28,10 @@ userController.listById = async(req,res)=>{
 }
 
 userController.register = async(req,res)=>{
-    // const errors = validationResult(req)
-    // if(!errors.isEmpty()){
-    //     return res.status(400).json({errors:errors.array()})
-    // }
+    const errors = validationResult(req)
+    if(!errors.isEmpty()){
+        return res.status(400).json({errors:errors.array()})
+    }
     const {name,email,password,mobile,role,passcode} = req.body;
        
     try{
@@ -53,7 +51,6 @@ userController.register = async(req,res)=>{
 
         await user.save();
 
-        // sendVerificationEmail({email:user.email,message:'Verify your account',verificationToken:verificationToken});
         return res.status(201).json(user);
     }catch(err){
         console.log(err)
@@ -62,10 +59,10 @@ userController.register = async(req,res)=>{
 }
 
 userController.login = async(req,res)=>{
-    // const errors = validationResult(req)
-    // if(!errors.isEmpty()){
-    //     return res.status(400).json({errors:errors.array()})
-    // }
+    const errors = validationResult(req)
+    if(!errors.isEmpty()){
+        return res.status(400).json({errors:errors.array()})
+    }
     const {email,password} = req.body
     try{
         const user = await User.findOne({email})
@@ -117,17 +114,18 @@ userController.forgotPassword = async(req,res)=>{
 
      // Generate a secure random token
       const resetToken = crypto.randomBytes(32).toString('hex');
+    
       sendResetPasswordEmail({token:resetToken,email:user.email});
-
      // Hash it before storing in DB for security
       const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-
-     // Set expiry time (e.g., 15 minutes from now)
-      const tokenExpiry = Date.now() + 5 * 60 * 1000; // 5 mins
+     console.log("tk",hashedToken);
+     
+     // Set expiry time (e.g., 5 minutes from now)
+      const tokenExpiry =new Date(Date.now() + 5 * 60 * 1000);  // 5 mins
 
      // Save to user document (example)
       user.passwordResetToken = hashedToken;
-      user.passwordResetExpires = tokenExpiry;
+      user.passwordResetExpiry = tokenExpiry;
 
       await user.save();
       return res.json({success:true,message:`reset token has be sent your ${user.email}`});
@@ -142,13 +140,18 @@ userController.forgotPassword = async(req,res)=>{
 userController.resetPassword = async(req,res)=>{
   const { token, newPassword } = req.body;
   try {
+    console.log("tokem",token);
+    
       // Hash token to match what was stored
         const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
         // Find user with matching token and check expiry
+        console.log("hgasj",hashedToken);
+        
         const user = await User.findOne({
            passwordResetToken: hashedToken,
-           passwordResetExpires: { $gt: Date.now() }
+           passwordResetExpiry: { $gt:  new Date() }
          });
+console.log("user",user);
 
       if (!user) {
         return res.status(400).json({ error: "Invalid or expired token" });
@@ -159,7 +162,7 @@ userController.resetPassword = async(req,res)=>{
        const hashedPassword = await bcryptjs.hash(newPassword,salt);
        user.password = hashedPassword;
        user.passwordResetToken = undefined;
-       user.passwordResetExpires = undefined;
+       user.passwordResetExpiry  = undefined;
        await user.save();
        return res.json({success:true,message:'password chenged succefully'})
   } catch (error) {
@@ -223,7 +226,7 @@ userController.updateAdminApproval = async(req,res)=>{
         const status = req.body.status
         user.isActive = status
         await user.save()
-         res.json({message:'Admin Status changed successfully'})
+         return res.json({message:'Admin Status changed successfully',details:user})
     } catch (error) {
          console.log(error)
         res.status(500).json({errors:'Something went wrong',message:error.message})
