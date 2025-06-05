@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer'
 
 export const transporter = nodemailer.createTransport({
   service: "gmail",
-  port: 465,
+  port: 587,
   secure: true,
 
   secureConnection: false,
