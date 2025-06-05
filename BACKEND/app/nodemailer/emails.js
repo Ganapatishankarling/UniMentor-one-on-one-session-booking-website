@@ -9,7 +9,7 @@ export const sendVerificationEmail= async (user)=>{
         to: user.email,
         subject: user.message,
         text: user.message,
-        html:verificationEmailTemplate.replace("{verificationCode}",user.verificationToken)
+        html:verificationEmailTemplate.replace("{name}",user.verificationToken)
     };
 
     try{
@@ -38,12 +38,13 @@ export const sendWelcomeEmail=async(user)=>{
 
 
 export const sendResetPasswordEmail = async(data)=>{
+      const htmlContent = welcomeEmailTemplate.replace(/{name}/g, data.token);
     const mailOptions = {
         from: 'ganapatishankarling66@gmail.com',
         to: data.email,
         subject: 'reset possword',
         text: data.token,
-        html:welcomeEmailTemplate.replace("{name}",data.token)
+        html:htmlContent
     };
 
     try{
