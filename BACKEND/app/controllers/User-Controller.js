@@ -37,9 +37,9 @@ userController.register = async(req,res)=>{
     try{
         const user = new User({name,email,password,mobile,role})
         if(role == 'student' || role == 'admin'){
-            user.isActive = true
+            user.isActive = "approved"
         }else{
-            user.isActive = false
+            user.isActive = "pending"
         }
 
         if(user.role === "admin" && passcode != "AdminPass"){
