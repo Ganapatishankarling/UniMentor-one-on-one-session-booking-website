@@ -14,7 +14,7 @@ const SessionSchema = new Schema({
     duration: {
         type: Number, 
         default: 60,  
-        min: 15,      
+        min: 30,      
         max: 120    
     },
     
