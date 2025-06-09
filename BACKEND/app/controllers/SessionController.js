@@ -88,6 +88,7 @@ sessionController.listStudentSessionById = async(req, res) => {
     return res.status(500).json({ errors: 'something went wrong', mesg: error?.message });
   }
 }
+
 sessionController.create = async(req,res)=>{
     const errors = validationResult(req)
     if(!errors.isEmpty()){
@@ -104,27 +105,96 @@ sessionController.create = async(req,res)=>{
     }
 }
 
-sessionController.update=async(req,res)=>{
-    const errors = validationResult(req)
-        if(!errors.isEmpty()){
-            return res.status(400).json({errors:errors.array()})
-        }
-        const id = req.params.id
-        const {status,date,startTime,endTime,topic,studentId} = req.body
+// sessionController.update=async(req,res)=>{
+//     const errors = validationResult(req)
+//         if(!errors.isEmpty()){
+//             return res.status(400).json({errors:errors.array()})
+//         }
+//         const id = req.params.id
+//         const {status,date,startTime,endTime,topic,studentId,duration} = req.body
 
-        try{
-            const session = await Session.findById(id)
-            if(!session){
-                return res.status(400).json({errors:'Session not found'})
+//         try{
+//             const session = await Session.findById(id)
+//             if(!session){
+//                 return res.status(400).json({errors:'Session not found'})
+
+//             }
+//             if(startTime + endTime > duration){
+//                 return res.status(400).json({errors:'startTime endTime cannot be greater than duration'})
+//             }
+
+//             const updatedSession = await Session.findByIdAndUpdate(id,{studentId:req.body.studentId,...req.body},{new:true})
+//             return res.json(updatedSession)
+//         }catch(err){
+//             console.log(err)
+//             return res.status(500).json({errors:'Something went wrong'})
+//         }
+//     }
+
+sessionController.update = async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+    
+    const id = req.params.id;
+    const { status, date, startTime, endTime, topic, studentId, duration } = req.body;
+
+    try {
+        const session = await Session.findById(id);
+        if (!session) {
+            return res.status(404).json({ errors: 'Session not found' });
+        }
+
+        // Convert time strings to minutes for calculation
+        const convertTimeToMinutes = (timeString) => {
+            const [hours, minutes] = timeString.split(':').map(Number);
+            return hours * 60 + minutes;
+        };
+
+        // If startTime and endTime are provided, validate them
+        if (startTime && endTime) {
+            const startMinutes = convertTimeToMinutes(startTime);
+            const endMinutes = convertTimeToMinutes(endTime);
+            const sessionDuration = endMinutes - startMinutes;
+
+            // Check if end time is after start time
+            if (sessionDuration <= 0) {
+                return res.status(400).json({ 
+                    errors: 'End time must be after start time' 
+                });
             }
 
-            const updatedSession = await Session.findByIdAndUpdate(id,{studentId:req.body.studentId,...req.body},{new:true})
-            return res.json(updatedSession)
-        }catch(err){
-            console.log(err)
-            return res.status(500).json({errors:'Something went wrong'})
+            // Check if calculated duration matches the provided duration (if provided)
+            const expectedDuration = duration || session.duration || 60;
+            if (sessionDuration !== expectedDuration) {
+                return res.status(400).json({ 
+                    errors: `Session duration (${sessionDuration} minutes) does not match expected duration (${expectedDuration} minutes)` 
+                });
+            }
         }
+
+        // Validate duration if provided
+        if (duration !== undefined) {
+            if (duration < 30 || duration > 120) {
+                return res.status(400).json({ 
+                    errors: 'Duration must be between 30 and 120 minutes' 
+                });
+            }
+        }
+
+        const updatedSession = await Session.findByIdAndUpdate(
+            id,
+            { studentId: req.body.studentId, ...req.body },
+            { new: true, runValidators: true }
+        );
+        
+        return res.json(updatedSession);
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ errors: 'Something went wrong' });
     }
+};
 
 sessionController.reschedule = async(req,res)=>{
     const errors = validationResult(req)
