@@ -28,8 +28,8 @@ export const userRegisterValidationSchema = {
                     if(user){
                         throw new Error('email already exists')
                     }
-                }catch(err){
-                    throw err
+                }catch(error){
+                    throw new Error(error.message)
                 }
                 return true
             }
@@ -132,15 +132,54 @@ export const userLoginValidationSchema = {
             errorMessage:'password should be 8 character long and must contain atleast, one uppercase, one lowercase,one number and one symbol'
         }
     },
-    // headers: {
-    //     in: ['headers'],
-    //     custom:{
-    //         options:async(value,{req})=>{
-    //             if(req.user.role !== 'admin'){
-    //                 throw new Error('Unauthorized access')
-    //             }
-    //             return true
-    //         }
-    //     }
-    // }
 }
+
+export const forgotPasswordValidation = {
+    email:{
+        in:['body'],
+        exists:{
+            errorMessage:'email field is required'
+        },
+        notEmpty:{
+            errorMessage:'email field should not be empty'
+        },
+        trim:true,
+        isEmail:{
+            errorMessage:'email should be in valid format'
+        }
+    }
+};
+
+export const resetPasswordValidation ={
+    token:{
+        in:['body'],
+        exists:{
+            errorMessage:'token field is required'
+        },
+        notEmpty:{
+            errorMessage:'token field should not be empty'
+        },
+        trim:true,
+    },
+    newPassword:{
+        in:['body'],
+        exists:{
+            errorMessage:'newPassword field is required'
+        },
+        notEmpty:{
+            errorMessage:'newPassword field should not be empty'
+        },
+        trim:true,
+        isStrongPassword:{
+            options:{
+                minLength:8,
+                minUpperCase:1,
+                minLowerCase:1,
+                minNumber:1,
+                minSymbol:1
+            },
+            errorMessage:'password length sould be 8 charecter and password sould contain 1 number, 1 symbol, 1 uppercase, 1 lowercase'
+        }
+    }
+};
+
