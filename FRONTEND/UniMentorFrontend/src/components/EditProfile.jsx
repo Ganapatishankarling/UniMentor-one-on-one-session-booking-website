@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { updateProfile, clearSuccess } from "../slices/userSlice.jsx";
@@ -5,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { listCategories } from '../slices/categorySlice.jsx'
 import { fetchUserAccount } from "../slices/accountSlice.jsx";
 import ProfileImageUpload from "./ProfileImageUpload.jsx";
-import { User, Mail, Phone, BookOpen, GraduationCap, Calendar, Award, Building2, Briefcase, ArrowLeft, Save, Sparkles } from "lucide-react";
+import { User, Mail, Phone, BookOpen, GraduationCap, Calendar, Award, Building2, Briefcase, ArrowLeft, Save, Sparkles, X } from "lucide-react";
 
 export default function EditProfile() {
   const dispatch = useDispatch();
@@ -37,7 +38,7 @@ export default function EditProfile() {
   });
   
   const [mentorData, setMentorData] = useState({
-    expertiseAreas: "",
+    expertiseAreas: [],
     experience: "",
     university: "",
     categoryId: "",
@@ -64,10 +65,20 @@ export default function EditProfile() {
           graduationYear: profile.graduationYear || "",
         });
       } else if (profile.role === "mentor") {
+        // Handle both string and array formats for backward compatibility
+        const existingExpertise = profile.expertiseAreas;
+        let expertiseArray = [];
+        
+        if (typeof existingExpertise === 'string') {
+          expertiseArray = existingExpertise ? [existingExpertise] : [];
+        } else if (Array.isArray(existingExpertise)) {
+          expertiseArray = existingExpertise;
+        }
+
         setMentorData({
           experience: profile.experience || "",
           university: profile.university || "",
-          expertiseAreas: profile.expertiseAreas || "",
+          expertiseAreas: expertiseArray,
         });
       }
     }
@@ -104,7 +115,28 @@ export default function EditProfile() {
     });
   };
 
+  const handleExpertiseSelect = (e) => {
+    const selectedCategory = e.target.value;
+    if (selectedCategory && !mentorData.expertiseAreas.includes(selectedCategory)) {
+      setMentorData({
+        ...mentorData,
+        expertiseAreas: [...mentorData.expertiseAreas, selectedCategory]
+      });
+    }
+    // Reset the select to default
+    e.target.value = "";
+  };
+
+  const handleExpertiseRemove = (expertiseToRemove) => {
+    setMentorData({
+      ...mentorData,
+      expertiseAreas: mentorData.expertiseAreas.filter(expertise => expertise !== expertiseToRemove)
+    });
+  };
+
   const handleImageChange = (file) => {
+    console.log("file",file);
+    
     setProfileImageFile(file);
   };
 
@@ -116,7 +148,12 @@ export default function EditProfile() {
     if (profile?.role === "student") {
       updatedData = { ...updatedData, ...studentData };
     } else if (profile?.role === "mentor") {
-      updatedData = { ...updatedData, ...mentorData };
+      // Convert expertiseAreas array to string for backend compatibility if needed
+      const mentorDataToSend = {
+        ...mentorData,
+        expertiseAreas: mentorData.expertiseAreas.join(', ') // or send as array based on your backend
+      };
+      updatedData = { ...updatedData, ...mentorDataToSend };
     }
 
     const formDataToSend = new FormData()
@@ -130,7 +167,7 @@ export default function EditProfile() {
     }
     
     const id = profile?._id
-    await dispatch(updateProfile({ formData: updatedData, id }));
+    await dispatch(updateProfile({ formData: formDataToSend, id }));
   };
 
   const renderRoleSpecificFields = () => {
@@ -251,18 +288,47 @@ export default function EditProfile() {
                     Expertise Areas
                   </label>
                   <select
-                    name="expertiseAreas"
-                    value={mentorData.expertiseAreas}
-                    onChange={handleMentorDataChange}
+                    onChange={handleExpertiseSelect}
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all duration-300 bg-white/80 backdrop-blur-sm group-hover:border-emerald-300"
                   >
-                    <option value="">Select a Category</option>
+                    <option value="">Select a Category to Add</option>
                     {categories && categories.map((category) => (
-                      <option key={category._id} value={category.name}>
-                        {category.name}
+                      <option 
+                        key={category._id} 
+                        value={category.name}
+                        disabled={mentorData.expertiseAreas.includes(category.name)}
+                      >
+                        {category.name} {mentorData.expertiseAreas.includes(category.name) ? '(Selected)' : ''}
                       </option>
                     ))}
                   </select>
+                  
+                  {/* Selected Expertise Areas Display */}
+                  {mentorData.expertiseAreas.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-sm text-gray-600 mb-3 font-medium">Selected Expertise Areas:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {mentorData.expertiseAreas.map((expertise, index) => (
+                          <div
+                            key={index}
+                            className="group flex items-center gap-2 bg-gradient-to-r from-emerald-100 to-teal-100 border border-emerald-200 px-4 py-2 rounded-lg hover:shadow-md transition-all duration-300"
+                          >
+                            <span className="text-emerald-800 font-medium text-sm">
+                              {expertise}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleExpertiseRemove(expertise)}
+                              className="flex items-center justify-center w-5 h-5 bg-red-100 hover:bg-red-200 border border-red-300 rounded-full transition-all duration-200 group-hover:scale-110"
+                              title={`Remove ${expertise}`}
+                            >
+                              <X className="w-3 h-3 text-red-600" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
