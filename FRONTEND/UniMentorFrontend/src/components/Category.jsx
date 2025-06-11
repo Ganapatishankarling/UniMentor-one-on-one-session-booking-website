@@ -1,5 +1,4 @@
-import React from "react"
-import {useEffect} from "react"
+import React,{useEffect} from "react"
 import {useSelector,useDispatch} from "react-redux"
 import {listCategories,deleteCategory} from "../slices/categorySlice.jsx"
 import {useNavigate,Link} from "react-router-dom"
