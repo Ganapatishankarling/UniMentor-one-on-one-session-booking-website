@@ -1,5 +1,4 @@
-import React from 'react'
-import { useState, useEffect } from 'react'
+import React,{ useState, useEffect } from 'react'
 import { createCategory, listCategories, updateCategory } from '../slices/categorySlice.jsx'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useParams } from 'react-router-dom'
