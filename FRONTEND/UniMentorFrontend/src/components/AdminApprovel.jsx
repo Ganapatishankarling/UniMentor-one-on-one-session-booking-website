@@ -3,12 +3,17 @@ import { useSelector, useDispatch } from "react-redux";
 import axios from "../config/axios";
 import { toast } from "react-toastify";
 import { listUsers } from "../slices/userSlice";
+import { Star, User, Loader2 } from 'lucide-react';
 
 export default function AdminApproval() {
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState("pending");
   const [selectedMentor, setSelectedMentor] = useState(null);
   const [viewMode, setViewMode] = useState("list"); // list or detail
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewDetails, setReviewDetails] = useState({});
+  const [averageRating, setAverageRating] = useState(0);
   const { users, loading, error } = useSelector((state) => state.users);
 
     
@@ -18,6 +23,51 @@ export default function AdminApproval() {
      
     }, [dispatch]);
     console.log("user",mentors);
+
+  // Fetch reviews for a specific mentor
+  const fetchMentorReviews = async (mentorId) => {
+    try {
+      setReviewsLoading(true);
+      const response = await axios.get(`/reviews?mentorId=${mentorId}`, {
+        headers: { Authorization: localStorage.getItem('token') }
+      });
+      
+      setReviews(response.data);
+      
+      // Calculate average rating
+      if (response.data.length > 0) {
+        const total = response.data.reduce((sum, review) => sum + review.rating, 0);
+        setAverageRating((total / response.data.length).toFixed(1));
+      } else {
+        setAverageRating(0);
+      }
+
+      // Fetch user details for each review
+      const studentIds = [...new Set(response.data.map(review => review.studentId))];
+      
+      const detailsPromises = studentIds.map(id => 
+        axios.get(`/user/${id}`, {
+          headers: { Authorization: localStorage.getItem('token') }
+        })
+      );
+      
+      const detailsResponses = await Promise.all(detailsPromises.map(p => p.catch(e => null)));
+      
+      const details = {};
+      detailsResponses.forEach((res, index) => {
+        if (res && res.data) {
+          details[studentIds[index]] = res.data;
+        }
+      });
+      
+      setReviewDetails(details);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      toast.error('Failed to load reviews');
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
     
 
   // Filter mentors based on active tab
@@ -43,11 +93,16 @@ export default function AdminApproval() {
   const handleViewMentor = (mentor) => {
     setSelectedMentor(mentor);
     setViewMode("detail");
+    // Fetch reviews when viewing mentor details
+    fetchMentorReviews(mentor._id);
   };
 
   const handleBackToList = () => {
     setSelectedMentor(null);
     setViewMode("list");
+    setReviews([]);
+    setReviewDetails({});
+    setAverageRating(0);
   };
 
   const handleUpdateStatus = async (mentorId, status) => {
@@ -132,6 +187,17 @@ dispatch(listUsers())
                     }`}>
                       Status: {selectedMentor.isActive.charAt(0).toUpperCase() + selectedMentor.isActive.slice(1)}
                     </span>
+                    
+                    {/* Rating Display */}
+                    <div className="flex items-center justify-center bg-indigo-100 px-3 py-1 rounded-full">
+                      <Star className="h-4 w-4 text-yellow-500 mr-1" fill="#FFC107" />
+                      <span className="text-indigo-800 font-medium text-sm">
+                        {averageRating > 0 ? averageRating : 'No ratings'}
+                      </span>
+                      {reviews.length > 0 && (
+                        <span className="text-gray-500 text-xs ml-1">({reviews.length})</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -214,6 +280,82 @@ dispatch(listUsers())
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Reviews Section */}
+        <div className="mt-8 bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">Student Reviews</h2>
+              <div className="flex items-center">
+                <div className="flex items-center bg-indigo-100 px-3 py-1 rounded-full">
+                  <Star className="h-5 w-5 text-yellow-500 mr-1" fill="#FFC107" />
+                  <span className="text-indigo-800 font-medium">{averageRating > 0 ? averageRating : 'No ratings'}</span>
+                  {reviews.length > 0 && (
+                    <span className="text-gray-500 text-sm ml-1">({reviews.length})</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Reviews list */}
+          <div>
+            {reviewsLoading ? (
+              <div className="flex justify-center items-center p-12">
+                <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                <span className="ml-2 text-gray-600">Loading reviews...</span>
+              </div>
+            ) : reviews.length > 0 ? (
+              <ul className="divide-y divide-gray-200">
+                {reviews.map(review => {
+                  const student = reviewDetails[review.studentId] || {};
+                  return (
+                    <li key={review._id} className="p-6">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          {student.profileImage ? (
+                            <img
+                              src={`http://localhost:3047${student.profileImage}`}
+                              alt={student.name}
+                              className="h-10 w-10 rounded-full"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                              <User className="h-6 w-6 text-indigo-600" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-3 flex-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-medium text-gray-900">{student.name || 'Anonymous Student'}</h4>
+                            <p className="text-xs text-gray-500">
+                              {new Date(review.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex mt-1 mb-2">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className="h-4 w-4"
+                                fill={i < review.rating ? '#FFC107' : 'none'}
+                                stroke={i < review.rating ? '#FFC107' : '#CBD5E0'}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-sm text-gray-700">{review.comment}</p>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="p-6 text-center">
+                <p className="text-gray-500">No reviews yet for this mentor.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
