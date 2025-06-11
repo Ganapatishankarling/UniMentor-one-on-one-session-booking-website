@@ -5,11 +5,7 @@ import { fetchUserAccount } from '../slices/accountSlice.jsx'
 import { listCategories, deleteCategory } from '../slices/categorySlice.jsx'
 import { useNavigate, Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { 
-  Users, Calendar, FolderOpen, User, Mail, Phone, 
-  UserCheck, Edit, Trash2, Search, ChevronLeft, ChevronRight, 
-  Plus, CheckCircle, XCircle, RefreshCw
-} from 'lucide-react'
+import { Users, Calendar, FolderOpen, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Plus, CheckCircle, XCircle, RefreshCw} from 'lucide-react'
 import { listUsers } from '../slices/userSlice.jsx'
 
 export default function AdminDashboard() {
@@ -18,9 +14,7 @@ export default function AdminDashboard() {
   
   // State management
   const [activeTab, setActiveTab] = useState('users')
-  // const [users, setUsers] = useState([])
   const [sessions, setSessions] = useState([])
-  // const [userLoading, setUserLoading] = useState(true)
   const [sessionLoading, setSessionLoading] = useState(true)
   const [userFilter, setUserFilter] = useState('all')
   const [sessionFilter, setSessionFilter] = useState('all')
@@ -418,10 +412,10 @@ console.log("s",currentUser);
                             {session.topic || 'N/A'}
                           </td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {session.mentorName || 'N/A'}
+                            {session?.mentorId?.name || 'N/A'}
                           </td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {session.studentName || 'N/A'}
+                            {session?.studentId?.name || 'N/A'}
                           </td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm">
                             <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
