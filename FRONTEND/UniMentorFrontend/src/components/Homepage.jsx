@@ -1,29 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { listUsers } from "../slices/userSlice";
 import { fetchUserAccount } from "../slices/accountSlice";
 import { toast } from "react-toastify";
-import axios from "../config/axios";
+import axios from "../config/axios.jsx";
+import { Filter } from "lucide-react";
 
 export default function Homepage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedExpertise, setSelectedExpertise] = useState("All");
-  const [availabilityFilter, setAvailabilityFilter] = useState("all");
-  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-  const [showAvailabilityDropdown, setShowAvailabilityDropdown] = useState(false);
-  const [mentorsWithAvailability, setMentorsWithAvailability] = useState({});
+  const [mentorRatings, setMentorRatings] = useState({});
+  const [loadingRatings, setLoadingRatings] = useState(true);
   const searchInputRef = useRef(null);
   const filterDropdownRef = useRef(null);
-  const availabilityDropdownRef = useRef(null);
   
   const { users, loading, error } = useSelector((state) => state.users);
-  const { data } = useSelector((state) => state.account);
-  
   
   let mentors = users && users.length > 0 ? users.filter(user => user.role === "mentor") : [];  
   
@@ -32,13 +27,59 @@ export default function Homepage() {
     dispatch(fetchUserAccount());
   }, [dispatch]);
 
+  // Fetch mentor ratings
+  useEffect(() => {
+    if (!mentors || mentors.length === 0) return;
+
+    const fetchMentorRatings = async () => {
+      try {
+        setLoadingRatings(true);
+        const ratingPromises = mentors.map(mentor =>
+          axios
+            .get(`/reviews?mentorId=${mentor._id}`, {
+              headers: { Authorization: localStorage.getItem('token') },
+            })
+            .catch(() => ({ data: [] }))
+        );
+
+        const ratingResponses = await Promise.all(ratingPromises);
+
+        const ratings = {};
+        mentors.forEach((mentor, index) => {
+          const reviews = ratingResponses[index].data || [];
+          if (reviews.length > 0) {
+            const total = reviews.reduce((sum, review) => sum + review.rating, 0);
+            const average = (total / reviews.length).toFixed(1);
+            ratings[mentor._id] = { average, count: reviews.length };
+          } else {
+            ratings[mentor._id] = { average: 0, count: 0 };
+          }
+        });
+
+        setMentorRatings((prevRatings) => {
+          const isSame =
+            Object.keys(prevRatings).length === Object.keys(ratings).length &&
+            Object.keys(ratings).every(
+              key =>
+                prevRatings[key]?.average === ratings[key].average &&
+                prevRatings[key]?.count === ratings[key].count
+            );
+          return isSame ? prevRatings : ratings;
+        });
+      } catch (error) {
+        console.error('Error fetching mentor ratings:', error);
+      } finally {
+        setLoadingRatings(false);
+      }
+    };
+
+    fetchMentorRatings();
+  }, []);
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target)) {
         setShowFilterDropdown(false);
-      }
-      if (availabilityDropdownRef.current && !availabilityDropdownRef.current.contains(event.target)) {
-        setShowAvailabilityDropdown(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -66,11 +107,8 @@ export default function Homepage() {
             .map(item => item.trim())
             .includes(selectedExpertise));
             
-        const matchesAvailability = availabilityFilter === "all" || 
-          (availabilityFilter === "available" && mentorsWithAvailability[mentor._id]);
-        
-          const approved = mentor.isActive === "approved"
-        return matchesSearch && matchesExpertise && matchesAvailability && approved;
+        const approved = mentor.isActive === "approved"
+        return matchesSearch && matchesExpertise && approved;
       })
     : [];
   
@@ -81,11 +119,6 @@ export default function Homepage() {
   const handleExpertiseChange = (expertise) => {
     setSelectedExpertise(expertise);
     setShowFilterDropdown(false);
-  };
-  
-  const handleAvailabilityChange = (availability) => {
-    setAvailabilityFilter(availability);
-    setShowAvailabilityDropdown(false);
   };
   
   const handleSearchSubmit = (e) => {
@@ -100,287 +133,94 @@ export default function Homepage() {
   };
   
   const handleBookSession = (mentor) => {
-  navigate(`/book-session/${mentor._id}`);
-};
-  
-  const handleProfileClick = () => {
-    setProfileDropdownOpen(!profileDropdownOpen);
-    if (mobileMenuOpen) setMobileMenuOpen(false);
+    if (mentor.mentorIshAvailability) {
+      navigate(`/book-session/${mentor._id}`);
+    } else {
+      toast.info("This mentor is not currently available for booking");
+    }
   };
-
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
-    if (profileDropdownOpen) setProfileDropdownOpen(false);
-  };
-
-  const navigateToProfile = () => {
-    navigate("/profile");
-    setProfileDropdownOpen(false);
-  };
-
-  const handleLogout = () => {
-    navigate("/login");
-    setProfileDropdownOpen(false);
-  };
-  
+    
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl font-semibold">Loading mentors...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-xl font-semibold text-gray-700">Loading mentors...</div>
       </div>
     );
   }
   
   return (
-    <div className="bg-gradient-to-b from-blue-50 to-indigo-50 min-h-screen">
-      {/* Enhanced Navigation Bar with Search and Filters */}
-      <div className="bg-white shadow-md fixed top-0 left-0 right-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Left side: Logo/Brand */}
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-indigo-900 cursor-pointer" onClick={() => navigate("/")}>
-                UniMentor
-              </h1>
-            </div>
-            
-            {/* Center: Search and Filter - Hidden on mobile */}
-            <div className="hidden md:flex flex-1 justify-center px-6">
-              <div className="w-full max-w-xl flex items-center space-x-4">
-                {/* Search Form */}
-                <form onSubmit={handleSearchSubmit} className="flex-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5 text-indigo-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder="Search mentors..."
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                    className="pl-10 pr-3 py-2 w-full border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                  />
-                </form>
-                
-                {/* Filter Dropdown - Expertise */}
-                <div className="relative" ref={filterDropdownRef}>
-                  <button
-                    onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                    className="flex items-center px-4 py-2 border border-indigo-200 rounded-lg text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  >
-                    <span>{selectedExpertise === "All" ? "All Categories" : selectedExpertise}</span>
-                    <svg className={`ml-2 h-5 w-5 text-indigo-500 transform ${showFilterDropdown ? 'rotate-180' : ''} transition-transform`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                  
-                  {showFilterDropdown && (
-                    <div className="absolute z-20 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                      <div className="max-h-60 overflow-y-auto py-1">
-                        {expertiseAreas.map((area, index) => (
-                          <button
-                            key={index}
-                            onClick={() => handleExpertiseChange(area)}
-                            className={`block w-full text-left px-4 py-2 text-sm hover:bg-indigo-50 transition-colors ${selectedExpertise === area ? 'bg-indigo-100 text-indigo-800 font-medium' : 'text-gray-700'}`}
-                          >
-                            {area}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Filter Dropdown - Availability */}
-                <div className="relative" ref={availabilityDropdownRef}>
-                  <button
-                    onClick={() => setShowAvailabilityDropdown(!showAvailabilityDropdown)}
-                    className="flex items-center px-4 py-2 border border-indigo-200 rounded-lg text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  >
-                    <span>{availabilityFilter === "all" ? "All Availability" : "Available Now"}</span>
-                    <svg className={`ml-2 h-5 w-5 text-indigo-500 transform ${showAvailabilityDropdown ? 'rotate-180' : ''} transition-transform`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                  
-                  {showAvailabilityDropdown && (
-                    <div className="absolute z-20 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                      <div className="py-1">
-                        <button
-                          onClick={() => handleAvailabilityChange("all")}
-                          className={`block w-full text-left px-4 py-2 text-sm hover:bg-indigo-50 transition-colors ${availabilityFilter === "all" ? 'bg-indigo-100 text-indigo-800 font-medium' : 'text-gray-700'}`}
-                        >
-                          All Mentors
-                        </button>
-                        <button
-                          onClick={() => handleAvailabilityChange("available")}
-                          className={`block w-full text-left px-4 py-2 text-sm hover:bg-indigo-50 transition-colors ${availabilityFilter === "available" ? 'bg-indigo-100 text-indigo-800 font-medium' : 'text-gray-700'}`}
-                        >
-                          Available for Booking
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {/* Right side: Profile & Mobile Menu Toggle */}
-            <div className="flex items-center">
-              {/* Mobile menu button */}
-              <button 
-                className="md:hidden mr-3 text-indigo-700 hover:text-indigo-900 focus:outline-none"
-                onClick={toggleMobileMenu}
-              >
-                <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={mobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
-                </svg>
-              </button>
-              
-              {/* Profile button */}
-              <div className="relative">
-                <button 
-                  onClick={handleProfileClick}
-                  className="flex items-center space-x-3 focus:outline-none"
-                >
-                  <span className="text-sm font-medium text-gray-700 hidden md:block">
-                    {data?.name || "User"}
-                  </span>
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden border-2 border-indigo-200">
-                    {data?.profileImage ? (
-                      <img 
-                        src={`http://localhost:3047${data.profileImage}`}
-                        alt={data?.name || "User"}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-xl font-bold text-indigo-500">
-                        {data?.name ? data.name.charAt(0).toUpperCase() : "U"}
-                      </span>
-                    )}
-                  </div>
-                </button>
-                
-                {/* Profile Dropdown */}
-                {profileDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 border border-gray-200">
-                    <button
-                      onClick={navigateToProfile}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50"
-                    >
-                      My Profile
-                    </button>
-                    <button
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Mobile menu */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-x-0 top-16 bg-white shadow-md z-10 md:hidden">
-          <div className="px-4 py-3 space-y-3">
-            <form onSubmit={handleSearchSubmit} className="relative">
+    <div className="bg-gradient-to-b from-gray-50 to-slate-100 min-h-screen">      
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-0">
+        <div className="hidden md:flex flex-1 justify-center px-6">
+          <div className="w-full max-w-xl flex items-center space-x-4">
+            {/* Search Form */}
+            <div className="flex-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-indigo-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg className="h-5 w-5 text-slate-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                 </svg>
               </div>
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Search mentors..."
                 value={searchTerm}
                 onChange={handleSearchChange}
-                className="pl-10 pr-3 py-2 w-full border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearchSubmit(e);
+                  }
+                }}
+                className="pl-10 pr-3 py-2 w-full border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all bg-white"
               />
-            </form>
+            </div>
             
-            <div className="relative">
+            {/* Filter Icon with Dropdown */}
+            <div className="relative" ref={filterDropdownRef}>
               <button
                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                className="flex justify-between items-center w-full px-4 py-2 border border-indigo-200 rounded-lg text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none transition-all"
+                className="flex items-center justify-center p-2 border border-slate-300 rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-all"
               >
-                <span>{selectedExpertise === "All" ? "All Categories" : selectedExpertise}</span>
-                <svg className={`h-5 w-5 text-indigo-500 transform ${showFilterDropdown ? 'rotate-180' : ''} transition-transform`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                <Filter className="h-5 w-5" />
               </button>
               
               {showFilterDropdown && (
-                <div className="mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                  <div className="max-h-60 overflow-y-auto py-1">
-                    {expertiseAreas.map((area, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleExpertiseChange(area)}
-                        className={`block w-full text-left px-4 py-2 text-sm hover:bg-indigo-50 transition-colors ${selectedExpertise === area ? 'bg-indigo-100 text-indigo-800 font-medium' : 'text-gray-700'}`}
-                      >
-                        {area}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <div className="relative">
-              <button
-                onClick={() => setShowAvailabilityDropdown(!showAvailabilityDropdown)}
-                className="flex justify-between items-center w-full px-4 py-2 border border-indigo-200 rounded-lg text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none transition-all"
-              >
-                <span>{availabilityFilter === "all" ? "All Availability" : "Available Now"}</span>
-                <svg className={`h-5 w-5 text-indigo-500 transform ${showAvailabilityDropdown ? 'rotate-180' : ''} transition-transform`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-              
-              {showAvailabilityDropdown && (
-                <div className="mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                  <div className="py-1">
-                    <button
-                      onClick={() => handleAvailabilityChange("all")}
-                      className={`block w-full text-left px-4 py-2 text-sm hover:bg-indigo-50 transition-colors ${availabilityFilter === "all" ? 'bg-indigo-100 text-indigo-800 font-medium' : 'text-gray-700'}`}
-                    >
-                      All Mentors
-                    </button>
-                    <button
-                      onClick={() => handleAvailabilityChange("available")}
-                      className={`block w-full text-left px-4 py-2 text-sm hover:bg-indigo-50 transition-colors ${availabilityFilter === "available" ? 'bg-indigo-100 text-indigo-800 font-medium' : 'text-gray-700'}`}
-                    >
-                      Available for Booking
-                    </button>
+                <div className="absolute z-20 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden right-0">
+                  <div className="py-2">
+                    <div className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-gray-100">
+                      Filter by Expertise
+                    </div>
+                    <div className="max-h-60 overflow-y-auto py-1">
+                      {expertiseAreas.map((area, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleExpertiseChange(area)}
+                          className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 transition-colors ${selectedExpertise === area ? 'bg-slate-100 text-slate-800 font-medium' : 'text-gray-700'}`}
+                        >
+                          {area}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           </div>
         </div>
-      )}
-      
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20">
+        
         {/* Header Section */}
         <div className="text-center mb-10 mt-6">
-          <h1 className="text-4xl font-extrabold text-indigo-900 mb-4">Find Your Perfect Mentor</h1>
-          <p className="text-xl text-indigo-700 max-w-2xl mx-auto">Connect with experienced professionals who can guide your learning journey</p>
+          <h1 className="text-4xl font-extrabold text-slate-800 mb-4">Find Your Perfect Mentor</h1>
+          <p className="text-xl text-slate-600 max-w-2xl mx-auto">Connect with experienced professionals who can guide your learning journey</p>
         </div>
         
         {/* Error message */}
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-6 py-4 rounded-lg mb-8 shadow-md">
+          <div className="bg-red-50 border-l-4 border-red-400 text-red-700 px-6 py-4 rounded-lg mb-8 shadow-md">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
               </div>
@@ -393,22 +233,21 @@ export default function Homepage() {
         
         {/* Search Results Stats */}
         <div className="flex justify-between items-center mb-6">
-          <p className="text-gray-700">
+          <p className="text-slate-600">
             {filteredMentors.length} {filteredMentors.length === 1 ? 'mentor' : 'mentors'} found
             {selectedExpertise !== "All" && ` in ${selectedExpertise}`}
-            {availabilityFilter !== "all" && ` with available sessions`}
             {searchTerm && ` matching "${searchTerm}"`}
           </p>
         </div>
         
         {/* Mentors Grid */}
-        {  filteredMentors.length  > 0 ? (
+        {filteredMentors.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredMentors.map((mentor) => (
-              <div key={mentor._id} className="bg-white rounded-xl shadow-lg overflow-hidden transition duration-300 transform hover:scale-[1.02] hover:shadow-xl">
+              <div key={mentor._id} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden transition duration-300 transform hover:scale-[1.02] hover:shadow-lg">
                 <div className="p-6">
                   <div className="flex items-center space-x-4">
-                    <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden border-2 border-indigo-200 shadow-inner">
+                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border-2 border-slate-200 shadow-sm">
                       {mentor.profileImage ? (
                         <img 
                           src={`http://localhost:3047${mentor.profileImage}`}
@@ -416,28 +255,47 @@ export default function Homepage() {
                           className="w-full h-full rounded-full object-cover"
                         />
                       ) : (
-                        <span className="text-3xl font-bold text-indigo-500">
+                        <span className="text-3xl font-bold text-slate-600">
                           {mentor.name.charAt(0).toUpperCase()}
                         </span>
                       )}
                     </div>
                     
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900">{mentor.name}</h3>
+                      <h3 className="text-xl font-bold text-slate-900">{mentor.name}</h3>
                       {mentor.university && (
-                        <p className="text-indigo-600 font-medium">{mentor.university}</p>
+                        <p className="text-slate-700 font-medium">{mentor.university}</p>
+                      )}
+                      
+                      {/* Rating Stars */}
+                      {!loadingRatings && (
+                        <div className="flex items-center mt-1">
+                          <svg className="h-4 w-4 text-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                          <span className="ml-1 text-sm font-medium text-slate-600">
+                            {mentorRatings[mentor._id]?.average > 0
+                              ? mentorRatings[mentor._id]?.average
+                              : "No ratings"}
+                          </span>
+                          {mentorRatings[mentor._id]?.count > 0 && (
+                            <span className="ml-1 text-xs text-slate-500">
+                              ({mentorRatings[mentor._id]?.count})
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
                   
                   {mentor.expertiseAreas && (
                     <div className="mt-5">
-                      <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Expertise</h4>
+                      <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Expertise</h4>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {mentor.expertiseAreas.split(',').map((area, index) => (
                           <span 
                             key={index}
-                            className="inline-block bg-indigo-100 text-indigo-800 text-xs font-medium px-3 py-1 rounded-full"
+                            className="inline-block bg-slate-100 text-slate-700 text-xs font-medium px-3 py-1 rounded-full border border-slate-200"
                           >
                             {area.trim()}
                           </span>
@@ -448,7 +306,7 @@ export default function Homepage() {
                   
                   {mentor.bio && (
                     <div className="mt-5">
-                      <p className="text-gray-600 text-sm line-clamp-3">
+                      <p className="text-slate-600 text-sm line-clamp-3">
                         {mentor.bio}
                       </p>
                     </div>
@@ -456,34 +314,23 @@ export default function Homepage() {
                   
                   <div className="mt-6 flex justify-between items-center">
                     <div className="flex items-center text-sm">
-                      {mentorsWithAvailability[mentor._id] ? (
-                        <span className="text-green-600 font-medium flex items-center">
-                          <span className="h-2 w-2 bg-green-500 rounded-full mr-1.5"></span>
-                          Available for booking
-                        </span>
-                      ) : (
-                        <span className="text-gray-500 flex items-center">
-                          <span className="h-2 w-2 bg-gray-300 rounded-full mr-1.5"></span>
-                          No available sessions
-                        </span>
-                      )}
+                      <span className="text-slate-500 flex items-center">
+                        <span className="h-2 w-2 bg-slate-300 rounded-full mr-1.5"></span>
+                        Availability varies
+                      </span>
                     </div>
                     
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleViewProfile(mentor._id)}
-                        className="bg-white border border-indigo-500 text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                        className="bg-white border border-slate-400 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm"
                       >
                         Profile
                       </button>
                       
                       <button
                         onClick={() => handleBookSession(mentor)}
-                        className={`px-3 py-1.5 rounded-lg text-white text-sm font-medium transition-all ${
-                       mentor.mentorIshAvailability
-                            ? 'bg-indigo-600 hover:bg-indigo-700'
-                            : 'bg-gray-400 cursor-not-allowed'
-                        }`}
+                        className="bg-slate-700 hover:bg-slate-800 px-3 py-1.5 rounded-lg text-white text-sm font-medium transition-all shadow-sm"
                       >
                         Book Session
                       </button>
@@ -494,12 +341,12 @@ export default function Homepage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-16 bg-white rounded-xl shadow-md">
-            <svg className="mx-auto h-16 w-16 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="text-center py-16 bg-white rounded-xl shadow-md border border-gray-200">
+            <svg className="mx-auto h-16 w-16 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <div className="text-3xl font-bold text-indigo-800 mt-4 mb-2">No mentors found</div>
-            <p className="text-indigo-600 text-lg">Try adjusting your search or filter criteria</p>
+            <div className="text-3xl font-bold text-slate-800 mt-4 mb-2">No mentors found</div>
+            <p className="text-slate-600 text-lg">Try adjusting your search or filter criteria</p>
           </div>
         )}
       </div>
