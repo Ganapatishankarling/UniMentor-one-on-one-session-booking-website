@@ -1,6 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect,useMemo } from 'react';
 import axios from '../config/axios'
-import { Calendar, Clock, Settings, Plus, X, Save, Check, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Settings, Plus, X, Save, Check, AlertCircle, MoreVertical, Edit, Trash2 } from 'lucide-react';
+
+const convertTo24Hour = (time12h) => {
+  // Add safety checks
+  if (!time12h || typeof time12h !== 'string') {
+    console.warn('Invalid time format:', time12h);
+    return '00:00'; // or return a default time
+  }
+  
+  const [time, modifier] = time12h.split(' ');
+  
+  // Additional safety check
+  if (!time || !modifier) {
+    console.warn('Invalid time format - missing time or modifier:', time12h);
+    return '00:00';
+  }
+  
+  let [hours, minutes] = time.split(':');
+  
+  if (hours === '12') {
+    hours = '00';
+  }
+  
+  if (modifier === 'PM') {
+    hours = parseInt(hours, 10) + 12;
+  }
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes}`;
+};
 
 const MentorAvailability = () => {
   const [activeTab, setActiveTab] = useState('calendar');
@@ -9,23 +37,29 @@ const MentorAvailability = () => {
     noticePeriod: 3,
     reschedulePolicy: 'direct',
     rescheduleTimeframe: '24',
-    bufferTime: 0,
-    weeklySchedule: {
-      monday: { timeSlots: [] },
-      tuesday: { timeSlots: [] },
-      wednesday: { timeSlots: [] },
-      thursday: { timeSlots: [] },
-      friday: { timeSlots: [] },
-      saturday: { timeSlots: [] },
-      sunday: { timeSlots: [] }
-    },
     blockedDates: []
   });
   
-  const [selectedSchedule, setSelectedSchedule] = useState('Default');
-  const [schedules, setSchedules] = useState(['Default']);
+  const [schedules, setSchedules] = useState([
+    {
+      id: 'default',
+      name: 'Default',
+      weeklySchedule: {
+        monday: { timeSlots: [] },
+        tuesday: { timeSlots: [] },
+        wednesday: { timeSlots: [] },
+        thursday: { timeSlots: [] },
+        friday: { timeSlots: [] },
+        saturday: { timeSlots: [] },
+        sunday: { timeSlots: [] }
+      }
+    }
+  ]);
+  const [selectedScheduleId, setSelectedScheduleId] = useState('Default');
   const [showNewScheduleModal, setShowNewScheduleModal] = useState(false);
   const [newScheduleName, setNewScheduleName] = useState('');
+  const [showEditScheduleModal, setShowEditScheduleModal] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
@@ -33,124 +67,244 @@ const MentorAvailability = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isInitialized, setIsInitialized] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState(null)
+
+  const convertTo12Hour = (time24h) => {
+  if (!time24h || typeof time24h !== 'string') {
+    return '';
+  }
+  
+  const [hours, minutes] = time24h.split(':');
+  const hour24 = parseInt(hours, 10);
+  const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+  const ampm = hour24 >= 12 ? 'PM' : 'AM';
+  
+  return `${hour12}:${minutes} ${ampm}`;
+};
+
+
+    const timeOptions12Hour = useMemo(() => {
+    const times = [];
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+        const ampm = hour < 12 ? 'AM' : 'PM';
+        const timeString = `${hour12}:${minute.toString().padStart(2, '0')} ${ampm}`;
+        times.push(timeString);
+      }
+    }
+    return times;
+  }, []);
 
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
   const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  const currentSchedule = schedules.find(s => s.id === selectedScheduleId) || schedules[0];
+console.log("sd",currentSchedule);
 
   // Initialize component by fetching availability
   useEffect(() => {
     fetchAvailability();
   }, []);
 
-  const fetchAvailability = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      
-       // API call to get mentor's availability
-      const response = await axios.get('/availability/my', {
-        headers: {Authorization :localStorage.getItem('token'),
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      setAvailability(response.data);
-      setIsInitialized(true);
-    } catch (err) {
-      setError('Failed to load availability data');
-      console.error('Error fetching availability:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveAvailability = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      setSuccess('');
-      
-      // Prepare data for API
-      const dataToSave = {
-        bookingPeriod: availability.bookingPeriod,
-        noticePeriod: availability.noticePeriod,
-        reschedulePolicy: availability.reschedulePolicy,
-        rescheduleTimeframe: availability.rescheduleTimeframe,
-        bufferTime: availability.bufferTime,
-        weeklySchedule: availability.weeklySchedule,
-        blockedDates: availability.blockedDates
-      };
-      
-      const response = await axios.post('/availability', {
-        headers: {
-          Authorization :localStorage.getItem('token'),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(dataToSave)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save availability');
+const fetchAvailability = async () => {
+  try {
+    setLoading(true);
+    setError('');
+    
+    const response = await axios.get('/availability/my', {
+      headers: {
+        Authorization: localStorage.getItem('token'),
+        'Content-Type': 'application/json'
       }
-      // Simulate successful save
-      setSuccess('Availability saved successfully');
-      setTimeout(() => setSuccess(''), 3000);
+    });
+    
+    // Convert API data (24-hour) to frontend format (12-hour)
+    const apiData = response.data;
+    const convertedData = {
+      ...apiData,
+      weeklySchedule: {}
+    };
+    
+    // Convert each day's time slots to 12-hour format
+    Object.keys(apiData.weeklySchedule).forEach(day => {
+      convertedData.weeklySchedule[day] = {
+        ...apiData.weeklySchedule[day],
+        timeSlots: apiData.weeklySchedule[day].timeSlots.map(slot => ({
+          ...slot,
+          startTime: convertTo12Hour(slot.startTime),
+          endTime: convertTo12Hour(slot.endTime),
+          slotTime: `${convertTo12Hour(slot.startTime)} - ${convertTo12Hour(slot.endTime)}` // Add slotTime for display
+        }))
+      };
+    });
+    
+    setAvailability(convertedData);
+    setIsInitialized(true);
+  } catch (err) {
+    setError('Failed to load availability data');
+    console.error('Error fetching availability:', err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+   const saveAvailability = async () => {
+  try {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    
+    const convertedWeeklySchedule = {};
+    Object.keys(availability.weeklySchedule).forEach(day => {
+      const daySchedule = availability.weeklySchedule[day];
       
-    } catch (err) {
-      setError('Failed to save availability');
-      console.error('Error saving availability:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const validTimeSlots = daySchedule.timeSlots
+        .filter(slot => slot.startTime && slot.endTime && slot.startTime !== '' && slot.endTime !== '')
+        .map(slot => ({
+          // Only send fields that API expects
+          startTime: convertTo24Hour(slot.startTime),
+          endTime: convertTo24Hour(slot.endTime),
+          isAvailable: slot.isAvailable,
+          isBooked: slot.isBooked,
+          // Include API fields if they exist (for updates)
+          ...(slot._id && { _id: slot._id }),
+          ...(slot.sessionId && { sessionId: slot.sessionId })
+        }));
+      
+      convertedWeeklySchedule[day] = {
+        slotStatus: daySchedule.slotStatus || [],
+        timeSlots: validTimeSlots
+      };
+    });
+    
+    const dataToSave = {
+      bookingPeriod: availability.bookingPeriod,
+      noticePeriod: availability.noticePeriod,
+      reschedulePolicy: availability.reschedulePolicy,
+      rescheduleTimeframe: availability.rescheduleTimeframe,
+      weeklySchedule: convertedWeeklySchedule,
+      blockedDates: availability.blockedDates
+    };
+
+    const response = await axios.post('/availability', dataToSave, {
+      headers: {
+        "Authorization": localStorage.getItem('token'),
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // Convert the response back to 12-hour format for frontend
+    const responseData = response.data;
+    const convertedResponse = {
+      ...responseData,
+      weeklySchedule: {}
+    };
+    
+    Object.keys(responseData.weeklySchedule).forEach(day => {
+      convertedResponse.weeklySchedule[day] = {
+        ...responseData.weeklySchedule[day],
+        timeSlots: responseData.weeklySchedule[day].timeSlots.map(slot => ({
+          ...slot,
+          startTime: convertTo12Hour(slot.startTime),
+          endTime: convertTo12Hour(slot.endTime),
+          slotTime: `${convertTo12Hour(slot.startTime)} - ${convertTo12Hour(slot.endTime)}`
+        }))
+      };
+    });
+
+    setAvailability(convertedResponse);
+    setSuccess('Availability saved successfully');
+    setTimeout(() => setSuccess(''), 3000);
+    
+  } catch (err) {
+    setError('Failed to save availability');
+    console.error('Error saving availability:', err);
+    console.error('Error response:', err.response?.data);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+const saveReschedulePolicy = async () => {
+  try {
+    setLoading(true);
+
+    // Send full availability, but only change reschedule parts
+    const dataToSave = {
+      ...availability,
+      reschedulePolicy: availability.reschedulePolicy,
+      rescheduleTimeframe: availability.rescheduleTimeframe
+    };
+
+    const response = await axios.post('/availability', dataToSave, {
+      headers: {
+        Authorization: localStorage.getItem('token'),
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // Update local state with fresh server data
+    setAvailability(response.data);
+    setShowRescheduleModal(false);
+    setSuccess('Reschedule policy updated successfully');
+    setTimeout(() => setSuccess(''), 3000);
+
+  } catch (err) {
+    setError('Failed to update reschedule policy');
+    console.error('Error updating reschedule policy:', err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const updateDaySchedule = async (day, timeSlots) => {
-    try {
-      setError('');
-      
-      // Update local state immediately
-      setAvailability(prev => ({
-        ...prev,
-        weeklySchedule: {
-          ...prev.weeklySchedule,
-          [day]: { timeSlots }
-        }
-      }));
-      
-      // API call to update day schedule
-      const response = await axios.patch(`/availability/day/${day}`, {
-        method: 'PATCH',
-        headers: {
-          Authorization :localStorage.getItem('token'),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ timeSlots })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update schedule');
+  try {
+    setError('');
+
+    setAvailability(prev => ({
+      ...prev,
+      weeklySchedule: {
+        ...prev.weeklySchedule,
+        [day]: { timeSlots }
       }
-      
-    } catch (err) {
-      setError('Failed to update schedule');
-      console.error('Error updating day schedule:', err);
-    }
-  };
+    }));
+    
+    const config = {
+      url: `/availability/day/${day}`,
+      method: 'patch',
+      headers: {
+        Authorization: localStorage.getItem('token'),
+        'Content-Type': 'application/json'
+      },
+      data: { timeSlots }
+    };
+
+    await axios(config);
+
+  } catch (err) {
+    setError('Failed to update schedule');
+    console.error('Error updating day schedule:', err);
+  }
+};
+
 
   const manageBlockedDates = async (action, dates) => {
     try {
       setError('');
-      
-     const response = await axios.patch('/availability/blocked-dates', {
-        method: 'PATCH',
-        headers: {
+      const config = {
+        url:"/availability/blocked-dates",
+        method:'patch',
+        headers:{
           Authorization :localStorage.getItem('token'),
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ action, dates })
-      });
-      
-      if (!response.ok) {
+        data:{ action, dates }
+      }
+      await axios(config).then((response)=>{
+      if (!response) {
         throw new Error('Failed to manage blocked dates');
       }
       // Update local state
@@ -165,11 +319,69 @@ const MentorAvailability = () => {
           blockedDates: prev.blockedDates.filter(date => !dates.includes(date))
         }));
       }
+      }).catch((err)=>{
+setError('Failed to manage blocked dates');
+      console.error('Error managing blocked dates:', err);
+      })
+
       
     } catch (err) {
       setError('Failed to manage blocked dates');
       console.error('Error managing blocked dates:', err);
     }
+  };
+
+const createNewSchedule = () => {
+    if (newScheduleName.trim() && !schedules.some(s => s.name === newScheduleName.trim())) {
+      const newSchedule = {
+        id: Date.now().toString(),
+        name: newScheduleName.trim(),
+        weeklySchedule: {
+          monday: { timeSlots: [] },
+          tuesday: { timeSlots: [] },
+          wednesday: { timeSlots: [] },
+          thursday: { timeSlots: [] },
+          friday: { timeSlots: [] },
+          saturday: { timeSlots: [] },
+          sunday: { timeSlots: [] }
+        }
+      };
+      
+      setSchedules(prev => [...prev, newSchedule]);
+      setSelectedScheduleId(newSchedule.id);
+      setNewScheduleName('');
+      setShowNewScheduleModal(false);
+    }
+  };
+
+  const editSchedule = (schedule) => {
+    setEditingSchedule(schedule);
+    setNewScheduleName(schedule.name);
+    setShowEditScheduleModal(true);
+    setActiveDropdown(null);
+  };
+
+  const updateScheduleName = () => {
+    if (newScheduleName.trim() && editingSchedule) {
+      setSchedules(prev => prev.map(schedule => 
+        schedule.id === editingSchedule.id 
+          ? { ...schedule, name: newScheduleName.trim() }
+          : schedule
+      ));
+      setNewScheduleName('');
+      setEditingSchedule(null);
+      setShowEditScheduleModal(false);
+    }
+  };
+
+  const deleteSchedule = (scheduleId) => {
+    if (schedules.length > 1) {
+      setSchedules(prev => prev.filter(s => s.id !== scheduleId));
+      if (selectedScheduleId === scheduleId) {
+        setSelectedScheduleId(schedules.find(s => s.id !== scheduleId)?.id || schedules[0].id);
+      }
+    }
+    setActiveDropdown(null);
   };
 
   // Generate calendar days
@@ -206,18 +418,33 @@ const MentorAvailability = () => {
     manageBlockedDates(action, [dateStr]);
   };
 
-  const addTimeSlot = (day) => {
-    const currentSlots = availability.weeklySchedule[day].timeSlots;
-    const newSlot = {
-      slotTime: '09:00',
-      isAvailable: true,
-      isBooked: false,
-      sessionId: null
-    };
-    
-    const updatedSlots = [...currentSlots, newSlot];
-    updateDaySchedule(day, updatedSlots);
+// Call this function with (day, startTime, endTime)
+const addTimeSlot = (day) => {
+  const newSlot = {
+    startTime: '', // Empty initially
+    endTime: '',   // Empty initially
+    slotTime: '',  // Will be updated when times are selected
+    isAvailable: true,
+    isBooked: false
   };
+
+  const updatedSchedule = {
+    ...availability,
+    weeklySchedule: {
+      ...availability.weeklySchedule,
+      [day]: {
+        ...availability.weeklySchedule[day],
+        timeSlots: [
+          ...(availability.weeklySchedule[day]?.timeSlots || []),
+          newSlot
+        ]
+      }
+    }
+  };
+
+  setAvailability(updatedSchedule);
+};
+
 
   const removeTimeSlot = (day, index) => {
     const currentSlots = availability.weeklySchedule[day].timeSlots;
@@ -225,22 +452,40 @@ const MentorAvailability = () => {
     updateDaySchedule(day, updatedSlots);
   };
 
-  const updateTimeSlot = (day, index, field, value) => {
-    const currentSlots = availability.weeklySchedule[day].timeSlots;
-    const updatedSlots = currentSlots.map((slot, i) => 
-      i === index ? { ...slot, [field]: value } : slot
-    );
-    updateDaySchedule(day, updatedSlots);
-  };
-
-  const createNewSchedule = () => {
-    if (newScheduleName.trim() && !schedules.includes(newScheduleName.trim())) {
-      setSchedules([...schedules, newScheduleName.trim()]);
-      setSelectedSchedule(newScheduleName.trim());
-      setNewScheduleName('');
-      setShowNewScheduleModal(false);
+const updateTimeSlot = (day, slotIndex, field, value) => {
+  const updatedSchedule = {
+    ...availability,
+    weeklySchedule: {
+      ...availability.weeklySchedule,
+      [day]: {
+        ...availability.weeklySchedule[day],
+        timeSlots: availability.weeklySchedule[day]?.timeSlots?.map((slot, index) => {
+          if (index === slotIndex) {
+            const updatedSlot = { ...slot, [field]: value };
+            
+            // If updating startTime or endTime, also update slotTime
+            if (field === 'startTime' || field === 'endTime') {
+              const startTime = field === 'startTime' ? value : slot.startTime;
+              const endTime = field === 'endTime' ? value : slot.endTime;
+              
+              // Only update slotTime if both times are selected and not empty
+              if (startTime && endTime && startTime !== '' && endTime !== '') {
+                updatedSlot.slotTime = `${startTime} - ${endTime}`;
+              } else {
+                updatedSlot.slotTime = '';
+              }
+            }
+            
+            return updatedSlot;
+          }
+          return slot;
+        }) || []
+      }
     }
   };
+  
+  setAvailability(updatedSchedule);
+};
 
   const generateTimeOptions = () => {
     const times = [];
@@ -339,12 +584,17 @@ const MentorAvailability = () => {
                     <div className="flex-1">
                       <label className="text-sm font-medium text-gray-700">Reschedule policy</label>
                       <p className="text-sm text-gray-500">How can customers reschedule calls</p>
-                      <div className="mt-2 text-sm text-gray-600">
-                        Policy: <span className="font-medium capitalize">{availability.reschedulePolicy}</span>
-                        {availability.rescheduleTimeframe !== 'anytime' && (
-                          <span> • Minimum notice: {availability.rescheduleTimeframe} hours</span>
-                        )}
-                      </div>
+                     <div className="mt-2 text-sm text-gray-600">
+  Policy: <span className="font-medium capitalize">{availability.reschedulePolicy}</span>
+  {availability.rescheduleTimeframe !== 'anytime' && (
+    <span> • Minimum notice: {
+      availability.rescheduleTimeframe === '30' ? '30 minutes' :
+      availability.rescheduleTimeframe === '8' ? '8 hours' :
+      availability.rescheduleTimeframe === '24' ? '24 hours' :
+      availability.rescheduleTimeframe + ' hours'
+    }</span>
+  )}
+</div>
                       <button 
                         onClick={() => setShowRescheduleModal(true)}
                         className="mt-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
@@ -393,25 +643,6 @@ const MentorAvailability = () => {
                           <option value="weeks">Weeks</option>
                         </select>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Buffer Time */}
-                  <div className="flex items-center space-x-4">
-                    <Clock className="w-5 h-5 text-gray-400" />
-                    <div className="flex-1">
-                      <label className="text-sm font-medium text-gray-700">Buffer Time</label>
-                      <p className="text-sm text-gray-500">Add buffer time between sessions</p>
-                      <select 
-                        className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        value={availability.bufferTime}
-                        onChange={(e) => setAvailability(prev => ({ ...prev, bufferTime: parseInt(e.target.value) }))}
-                      >
-                        <option value={0}>No buffer</option>
-                        <option value={15}>15 minutes</option>
-                        <option value={30}>30 minutes</option>
-                        <option value={60}>1 hour</option>
-                      </select>
                     </div>
                   </div>
                 </div>
@@ -520,20 +751,59 @@ const MentorAvailability = () => {
             </div>
           )}
 
-          {activeTab === 'schedule' && (
+{activeTab === 'schedule' && (
             <div className="space-y-6">
-              {/* Schedule Selection */}
+              {/* Schedule Management */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <select 
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={selectedSchedule}
-                    onChange={(e) => setSelectedSchedule(e.target.value)}
-                  >
+                  {/* Schedule Cards */}
+                  <div className="flex space-x-3">
                     {schedules.map(schedule => (
-                      <option key={schedule} value={schedule}>{schedule}</option>
+                      <div
+                        key={schedule.id}
+                        className={`relative flex items-center px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
+                          selectedScheduleId === schedule.id
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                        onClick={() => setSelectedScheduleId(schedule.id)}
+                      >
+                        <span className="font-medium">{schedule.name}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdown(activeDropdown === schedule.id ? null : schedule.id);
+                          }}
+                          className="ml-2 p-1 hover:bg-gray-200 rounded"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                        
+                        {/* Dropdown Menu */}
+                        {activeDropdown === schedule.id && (
+                          <div className="absolute top-full right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                            <button
+                              onClick={() => editSchedule(schedule)}
+                              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
+                            >
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit Schedule
+                            </button>
+                            {schedules.length > 1 && (
+                              <button
+                                onClick={() => deleteSchedule(schedule.id)}
+                                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete Schedule
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     ))}
-                  </select>
+                  </div>
+                  
                   <button
                     onClick={() => setShowNewScheduleModal(true)}
                     className="flex items-center px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -542,6 +812,7 @@ const MentorAvailability = () => {
                     New Schedule
                   </button>
                 </div>
+                
                 <button 
                   onClick={saveAvailability}
                   disabled={loading}
@@ -563,23 +834,27 @@ const MentorAvailability = () => {
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-3">
                         <input
-                          type="checkbox"
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                          checked={availability.weeklySchedule[day].timeSlots.length > 0}
-                          onChange={(e) => {
-                            if (!e.target.checked) {
-                              updateDaySchedule(day, []);
-                            } else {
-                              addTimeSlot(day);
-                            }
-                          }}
-                        />
+  type="checkbox"
+  className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+  checked={
+    availability.weeklySchedule[day]?.timeSlots.length > 0
+  }
+  onChange={(e) => {
+    if (!e.target.checked) {
+      // User unchecked → clear slots
+      updateDaySchedule(day, []);
+    } else {
+      // User checked → add an initial slot
+      addTimeSlot(day);
+    }
+  }}
+/>
                         <label className="font-medium text-gray-900">
                           {dayNames[dayIndex]}
                         </label>
                       </div>
                       
-                      {availability.weeklySchedule[day].timeSlots.length > 0 && (
+                      {availability.weeklySchedule[day]?.timeSlots.length > 0 && (
                         <button
                           onClick={() => addTimeSlot(day)}
                           className="flex items-center px-3 py-1 text-sm text-blue-600 hover:text-blue-800"
@@ -595,155 +870,166 @@ const MentorAvailability = () => {
                     ) : (
                       <div className="space-y-3">
                         {availability.weeklySchedule[day].timeSlots.map((slot, slotIndex) => (
-                          <div key={slotIndex} className="flex items-center space-x-3">
-                            <select
-                              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              value={slot.slotTime}
-                              onChange={(e) => updateTimeSlot(day, slotIndex, 'slotTime', e.target.value)}
-                            >
-                              {timeOptions.map(time => (
-                                <option key={time} value={time}>{time}</option>
-                              ))}
-                            </select>
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                                checked={slot.isAvailable}
-                                onChange={(e) => updateTimeSlot(day, slotIndex, 'isAvailable', e.target.checked)}
-                              />
-                              <label className="text-sm text-gray-600">Available</label>
-                            </div>
-                            {slot.isBooked && (
-                              <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
-                                Booked
-                              </span>
-                            )}
-                            <button
-                              onClick={() => removeTimeSlot(day, slotIndex)}
-                              className="p-1 text-red-500 hover:text-red-700"
-                              disabled={slot.isBooked}
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                          <div key={slotIndex} className="flex items-center space-x-3 flex-wrap gap-y-2">
+                           {/* Start Time Selector */}
+<div className="flex items-center space-x-2">
+  <label className="text-sm text-gray-600 font-medium">From:</label>
+  <select
+    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    value={slot.startTime || ''}
+    onChange={(e) => updateTimeSlot(day, slotIndex, 'startTime', e.target.value)}
+  >
+
+    {timeOptions12Hour.map(time => (
+      <option key={time} value={time}>{time}</option>
+    ))}
+  </select>
+</div>
+
+{/* End Time Selector */}
+<div className="flex items-center space-x-2">
+  <label className="text-sm text-gray-600 font-medium">To:</label>
+  <select
+    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    value={slot.endTime || ''}
+    onChange={(e) => updateTimeSlot(day, slotIndex, 'endTime', e.target.value)}
+  >
+    {timeOptions12Hour.map(time => (
+      <option key={time} value={time}>{time}</option>
+    ))}
+  </select>
+</div>
+
+              {/* Available Checkbox */}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                  checked={slot.isAvailable}
+                  onChange={(e) => updateTimeSlot(day, slotIndex, 'isAvailable', e.target.checked)}
+                />
+                <label className="text-sm text-gray-600">Available</label>
               </div>
+
+              {/* Booked Status */}
+              {slot.isBooked && (
+                <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
+                  Booked
+                </span>
+              )}
+
+              {/* Remove Button */}
+              <button
+                onClick={() => removeTimeSlot(day, slotIndex)}
+                className="p-1 text-red-500 hover:text-red-700"
+                disabled={slot.isBooked}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  ))}
+</div>
             </div>
           )}
         </div>
       </div>
 
       {/* Reschedule Policy Modal */}
-      {showRescheduleModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900">Reschedule Policy</h3>
-              <button
-                onClick={() => setShowRescheduleModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="space-y-6">
-              {/* How customers can initiate reschedule */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 mb-3">
-                  How can your customers initiate a reschedule
-                </h4>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => setAvailability(prev => ({ ...prev, reschedulePolicy: 'request' }))}
-                    className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      availability.reschedulePolicy === 'request'
-                        ? 'border-gray-400 bg-gray-100 text-gray-900'
-                        : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Request reschedule
-                  </button>
-                  <button
-                    onClick={() => setAvailability(prev => ({ ...prev, reschedulePolicy: 'direct' }))}
-                    className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      availability.reschedulePolicy === 'direct'
-                        ? 'border-gray-400 bg-gray-100 text-gray-900'
-                        : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Directly reschedule
-                  </button>
-                </div>
-              </div>
+{showRescheduleModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-semibold text-gray-900">Reschedule Policy</h3>
+        <button
+          onClick={() => setShowRescheduleModal(false)}
+          className="text-gray-400 hover:text-gray-600"
+        >
+          <X className="w-6 h-6" />
+        </button>
+      </div>
 
-              {/* Minimum notice before rescheduling */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 mb-3">
-                  Minimum notice before rescheduling a call
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setAvailability(prev => ({ ...prev, rescheduleTimeframe: '30' }))}
-                    className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      availability.rescheduleTimeframe === '30'
-                       ? 'border-gray-400 bg-gray-100 text-gray-900'
-                        : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    30 mins
-                  </button>
-                  <button
-                    onClick={() => setAvailability(prev => ({ ...prev, rescheduleTimeframe: '8hrs' }))}
-                    className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      availability.rescheduleTimeframe === '8hrs'
-                        ? 'border-gray-400 bg-gray-100 text-gray-900'
-                        : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    8 hrs
-                  </button>
-                  <button
-                    onClick={() => setAvailability(prev => ({ ...prev, rescheduleTimeframe: '24hrs' }))}
-                    className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      availability.rescheduleTimeframe === '24hrs'
-                        ? 'border-gray-400 bg-gray-100 text-gray-900'
-                        : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    24 hrs
-                  </button>
-                  <button
-                    onClick={() => setAvailability(prev => ({ ...prev, rescheduleTimeframe: 'anytime' }))}
-                    className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      availability.rescheduleTimeframe === 'anytime'
-                        ? 'border-gray-400 bg-gray-100 text-gray-900'
-                        : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Anytime
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Update Policy Button */}
-            <div className="mt-8">
-              <button
-                onClick={() => setShowRescheduleModal(false)}
-                className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium"
-              >
-                Update Policy
-              </button>
-            </div>
+      <div className="space-y-6">
+        {/* How customers can reschedule */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-900 mb-3">
+            How can your customers initiate a reschedule?
+          </h4>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => setAvailability(prev => ({ ...prev, reschedulePolicy: 'request' }))}
+              className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                availability.reschedulePolicy === 'request'
+                  ? 'border-gray-400 bg-gray-100 text-gray-900'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Request reschedule
+            </button>
+            <button
+              onClick={() => setAvailability(prev => ({ ...prev, reschedulePolicy: 'direct' }))}
+              className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                availability.reschedulePolicy === 'direct'
+                  ? 'border-gray-400 bg-gray-100 text-gray-900'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Directly reschedule
+            </button>
           </div>
         </div>
-      )}
+
+        {/* Minimum notice before rescheduling */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-900 mb-3">
+            Minimum notice before rescheduling a call
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: '30 min', value: '30' },
+              { label: '8 hrs', value: '8' },
+              { label: '24 hrs', value: '24' },
+              { label: 'Anytime', value: 'anytime' },
+            ].map(option => (
+              <button
+                key={option.value}
+                onClick={() => setAvailability(prev => ({ ...prev, rescheduleTimeframe: option.value }))}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  availability.rescheduleTimeframe === option.value
+                    ? 'border-gray-400 bg-gray-100 text-gray-900'
+                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Save button */}
+      <div className="mt-8">
+        <button
+          onClick={saveReschedulePolicy}
+          disabled={loading}
+          className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium disabled:opacity-50"
+        >
+          {loading ? (
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Updating...
+            </div>
+          ) : (
+            'Update Policy'
+          )}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* New Schedule Modal */}
       {showNewScheduleModal && (
