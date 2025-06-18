@@ -1,10 +1,10 @@
 import {Schema,model} from 'mongoose';
 const SessionSchema = new Schema({
     mentorId:{
-        type:Schema.Types.ObjectId
+        type:Schema.Types.ObjectId,ref:"User"
     },
     studentId:{
-        type:Schema.Types.ObjectId
+        type:Schema.Types.ObjectId,ref:"User"
     },
     date:Date,
     startTime:String,
@@ -20,7 +20,7 @@ const SessionSchema = new Schema({
     
     status:{
         type:String,
-        enum:['pending','completed'],
+        enum:['pending','completed','cancelled'],
         default:'pending'
     },
     topic:{
