@@ -34,7 +34,8 @@ sessionController.list = async(req,res)=>{
         
         // Populate mentor information to get mentor's name
         const session = await Session.find(filter)
-            .populate('mentorId', 'username email') // Add fields you want from mentor
+            .populate('mentorId', 'name email') // Add fields you want from mentor
+            .populate('studentId', 'name')
             .sort(sortOption)
             
         return res.json(session)
@@ -63,7 +64,9 @@ sessionController.listStudentSessionById = async(req, res) => {
     const sessions = await Session.find({ 
      
       studentId: studentId
-    });
+    }).populate({path:'mentorId',select:'name'});
+
+
      const date = new Date()
             const updateSessionStatus = await Promise.all(sessions.map(async(session)=>{
             const datePart = new Date(session.date).toISOString().split('T')[0]; // "2025-05-16"
@@ -82,7 +85,7 @@ sessionController.listStudentSessionById = async(req, res) => {
     }
             return session
         }))
-    console.log("student sessions", updateSessionStatus);
+    
     return res.json(updateSessionStatus);
   } catch (error) {
     return res.status(500).json({ errors: 'something went wrong', mesg: error?.message });
