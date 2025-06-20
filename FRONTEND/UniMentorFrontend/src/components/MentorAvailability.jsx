@@ -566,18 +566,6 @@ const updateTimeSlot = (day, slotIndex, field, value) => {
               {/* Configuration Section */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-6">
-                  {/* Timezone */}
-                  <div className="flex items-center space-x-4">
-                    <Settings className="w-5 h-5 text-gray-400" />
-                    <div className="flex-1">
-                      <label className="text-sm font-medium text-gray-700">Timezone</label>
-                      <p className="text-sm text-gray-500">Required for timely communications</p>
-                      <select className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option>(GMT+5:30) Chennai, Kolkata, Mumbai</option>
-                      </select>
-                    </div>
-                  </div>
-
                   {/* Reschedule Policy */}
                   <div className="flex items-center space-x-4">
                     <Calendar className="w-5 h-5 text-gray-400" />
