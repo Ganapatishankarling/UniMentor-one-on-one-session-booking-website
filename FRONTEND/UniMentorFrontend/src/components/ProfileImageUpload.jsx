@@ -3,6 +3,8 @@ import { Camera, X, Check, Move } from 'lucide-react';
 
 export default function ProfileImageUpload({ profileImage, name, onImageChange }) {
     const [previewImage, setPreviewImage] = useState(profileImage);
+    console.log("ssdd",previewImage);
+    
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [showCropModal, setShowCropModal] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
@@ -123,7 +125,11 @@ export default function ProfileImageUpload({ profileImage, name, onImageChange }
         // Convert to blob and update preview
         canvas.toBlob((blob) => {
             if (blob) {
+                console.log("b;o",blob);
+                
                 const croppedImageUrl = URL.createObjectURL(blob);
+                console.log("canvas",croppedImageUrl);
+                
                 setPreviewImage(croppedImageUrl);
                 onImageChange(blob);
                 setShowCropModal(false);
