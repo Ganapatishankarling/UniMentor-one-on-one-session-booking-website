@@ -3,27 +3,43 @@ import axios from '../config/axios'
 import { Calendar, Clock, Settings, Plus, X, Save, Check, AlertCircle, MoreVertical, Edit, Trash2 } from 'lucide-react';
 
 const convertTo24Hour = (time12h) => {
-  // Add safety checks
-  if (!time12h || typeof time12h !== 'string') {
+  // Return null for invalid inputs instead of default time
+  if (!time12h || typeof time12h !== 'string' || time12h.trim() === '') {
     console.warn('Invalid time format:', time12h);
-    return '00:00'; // or return a default time
+    return null; // Return null instead of '00:00'
   }
   
-  const [time, modifier] = time12h.split(' ');
+  const trimmedTime = time12h.trim();
+  const [time, modifier] = trimmedTime.split(' ');
   
   // Additional safety check
-  if (!time || !modifier) {
+  if (!time || !modifier || !['AM', 'PM'].includes(modifier.toUpperCase())) {
     console.warn('Invalid time format - missing time or modifier:', time12h);
-    return '00:00';
+    return null; // Return null instead of '00:00'
   }
   
-  let [hours, minutes] = time.split(':');
+  const timeParts = time.split(':');
+  if (timeParts.length !== 2) {
+    console.warn('Invalid time format - incorrect time parts:', time12h);
+    return null;
+  }
+  
+  let [hours, minutes] = timeParts;
+  
+  // Validate hours and minutes
+  const hoursNum = parseInt(hours, 10);
+  const minutesNum = parseInt(minutes, 10);
+  
+  if (isNaN(hoursNum) || isNaN(minutesNum) || hoursNum < 1 || hoursNum > 12 || minutesNum < 0 || minutesNum > 59) {
+    console.warn('Invalid time values:', time12h);
+    return null;
+  }
   
   if (hours === '12') {
     hours = '00';
   }
   
-  if (modifier === 'PM') {
+  if (modifier.toUpperCase() === 'PM') {
     hours = parseInt(hours, 10) + 12;
   }
   
@@ -82,6 +98,51 @@ const MentorAvailability = () => {
   return `${hour12}:${minutes} ${ampm}`;
 };
 
+const validateTimeSlots = () => {
+  const errors = [];
+  
+  Object.keys(availability.weeklySchedule).forEach(day => {
+    const daySchedule = availability.weeklySchedule[day];
+    
+    daySchedule.timeSlots.forEach((slot, index) => {
+      // Check if slot has incomplete times
+      if (!slot.startTime || !slot.endTime || slot.startTime === '' || slot.endTime === '') {
+        errors.push(`${day.charAt(0).toUpperCase() + day.slice(1)} - Slot ${index + 1}: Please select both start and end times`);
+      } else {
+        // Check if end time is after start time
+        const startTime24 = convertTo24Hour(slot.startTime);
+        const endTime24 = convertTo24Hour(slot.endTime);
+        
+        if (startTime24 && endTime24 && startTime24 >= endTime24) {
+          errors.push(`${day.charAt(0).toUpperCase() + day.slice(1)} - Slot ${index + 1}: End time must be after start time`);
+        }
+      }
+    });
+  });
+  
+  return errors;
+};
+
+const isSlotBookedForDate = (slot, date) => {
+  return slot.bookedDates && slot.bookedDates.includes(date);
+};
+
+const getAvailableDatesForSlot = (slot, startDate, endDate) => {
+  const availableDates = [];
+  const current = new Date(startDate);
+  const end = new Date(endDate);
+  
+  while (current <= end) {
+    const dateStr = current.toISOString().split('T')[0];
+    if (!isSlotBookedForDate(slot, dateStr)) {
+      availableDates.push(dateStr);
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return availableDates;
+};
+
 
     const timeOptions12Hour = useMemo(() => {
     const times = [];
@@ -134,7 +195,10 @@ const fetchAvailability = async () => {
           ...slot,
           startTime: convertTo12Hour(slot.startTime),
           endTime: convertTo12Hour(slot.endTime),
-          slotTime: `${convertTo12Hour(slot.startTime)} - ${convertTo12Hour(slot.endTime)}` // Add slotTime for display
+          slotTime: `${convertTo12Hour(slot.startTime)} - ${convertTo12Hour(slot.endTime)}`,
+          // UPDATED: Handle bookedDates array instead of isBooked
+          bookedDates: slot.bookedDates || [], // Ensure it's always an array
+          isBooked: slot.bookedDates && slot.bookedDates.length > 0 // Calculated field for UI
         }))
       };
     });
@@ -149,24 +213,41 @@ const fetchAvailability = async () => {
   }
 };
 
-   const saveAvailability = async () => {
+const saveAvailability = async () => {
   try {
     setLoading(true);
     setError('');
     setSuccess('');
+    
+    // Validate time slots first
+    const validationErrors = validateTimeSlots();
+    if (validationErrors.length > 0) {
+      setError(`Please fix the following issues:\n• ${validationErrors.join('\n• ')}`);
+      setLoading(false);
+      return;
+    }
     
     const convertedWeeklySchedule = {};
     Object.keys(availability.weeklySchedule).forEach(day => {
       const daySchedule = availability.weeklySchedule[day];
       
       const validTimeSlots = daySchedule.timeSlots
-        .filter(slot => slot.startTime && slot.endTime && slot.startTime !== '' && slot.endTime !== '')
+        .filter(slot => {
+          // Only include slots that have BOTH start and end times selected
+          return slot.startTime && 
+                 slot.endTime && 
+                 slot.startTime !== '' && 
+                 slot.endTime !== '' &&
+                 slot.startTime.trim() !== '' && 
+                 slot.endTime.trim() !== '';
+        })
         .map(slot => ({
-          // Only send fields that API expects
+          // Send required fields that API expects
           startTime: convertTo24Hour(slot.startTime),
           endTime: convertTo24Hour(slot.endTime),
           isAvailable: slot.isAvailable,
-          isBooked: slot.isBooked,
+          // UPDATED: Send bookedDates array instead of isBooked
+          bookedDates: slot.bookedDates || [], // Send array of booked dates
           // Include API fields if they exist (for updates)
           ...(slot._id && { _id: slot._id }),
           ...(slot.sessionId && { sessionId: slot.sessionId })
@@ -208,7 +289,10 @@ const fetchAvailability = async () => {
           ...slot,
           startTime: convertTo12Hour(slot.startTime),
           endTime: convertTo12Hour(slot.endTime),
-          slotTime: `${convertTo12Hour(slot.startTime)} - ${convertTo12Hour(slot.endTime)}`
+          slotTime: `${convertTo12Hour(slot.startTime)} - ${convertTo12Hour(slot.endTime)}`,
+          // UPDATED: Handle bookedDates from response
+          bookedDates: slot.bookedDates || [],
+          isBooked: slot.bookedDates && slot.bookedDates.length > 0
         }))
       };
     });
@@ -225,6 +309,7 @@ const fetchAvailability = async () => {
     setLoading(false);
   }
 };
+
 
 
 const saveReschedulePolicy = async () => {
@@ -418,14 +503,16 @@ const createNewSchedule = () => {
     manageBlockedDates(action, [dateStr]);
   };
 
-// Call this function with (day, startTime, endTime)
+// 4. Update addTimeSlot to include the new bookedDates field
 const addTimeSlot = (day) => {
   const newSlot = {
     startTime: '', // Empty initially
     endTime: '',   // Empty initially
     slotTime: '',  // Will be updated when times are selected
     isAvailable: true,
-    isBooked: false
+    isBooked: false, // Calculated field for UI
+    bookedDates: [], // UPDATED: Add empty bookedDates array
+    sessionId: null
   };
 
   const updatedSchedule = {
@@ -514,7 +601,7 @@ const updateTimeSlot = (day, slotIndex, field, value) => {
     );
   }
 
-  return (
+ return (
     <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
       <div className="bg-white rounded-lg shadow-sm">
         <div className="p-6 border-b border-gray-200">
@@ -530,7 +617,7 @@ const updateTimeSlot = (day, slotIndex, field, value) => {
           
           {error && (
             <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center">
-              <AlertCircle className="w-4 h-4 mr-2" />
+               <AlertCircle className="w-4 h-4 mr-2" />
               {error}
             </div>
           )}
@@ -859,7 +946,7 @@ const updateTimeSlot = (day, slotIndex, field, value) => {
                       <div className="space-y-3">
                         {availability.weeklySchedule[day].timeSlots.map((slot, slotIndex) => (
                           <div key={slotIndex} className="flex items-center space-x-3 flex-wrap gap-y-2">
-                           {/* Start Time Selector */}
+{/* Start Time Selector */}
 <div className="flex items-center space-x-2">
   <label className="text-sm text-gray-600 font-medium">From:</label>
   <select
@@ -867,7 +954,7 @@ const updateTimeSlot = (day, slotIndex, field, value) => {
     value={slot.startTime || ''}
     onChange={(e) => updateTimeSlot(day, slotIndex, 'startTime', e.target.value)}
   >
-
+    <option value="">Select start time</option>
     {timeOptions12Hour.map(time => (
       <option key={time} value={time}>{time}</option>
     ))}
@@ -882,12 +969,12 @@ const updateTimeSlot = (day, slotIndex, field, value) => {
     value={slot.endTime || ''}
     onChange={(e) => updateTimeSlot(day, slotIndex, 'endTime', e.target.value)}
   >
+    <option value="">Select end time</option>
     {timeOptions12Hour.map(time => (
       <option key={time} value={time}>{time}</option>
     ))}
   </select>
 </div>
-
               {/* Available Checkbox */}
               <div className="flex items-center space-x-2">
                 <input
@@ -899,21 +986,30 @@ const updateTimeSlot = (day, slotIndex, field, value) => {
                 <label className="text-sm text-gray-600">Available</label>
               </div>
 
-              {/* Booked Status */}
-              {slot.isBooked && (
-                <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
-                  Booked
-                </span>
-              )}
+              {/* Booked Status - Enhanced */}
+{slot.bookedDates && slot.bookedDates.length > 0 && (
+  <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
+    Booked ({slot.bookedDates.length} dates)
+  </span>
+  
+)}
+{/* Remove Button */}
+<button
+  onClick={() => removeTimeSlot(day, slotIndex)}
+  className="p-1 text-red-500 hover:text-red-700"
+  disabled={slot.bookedDates && slot.bookedDates.length > 0}
+>
+  <X className="w-4 h-4" />
+</button>
 
-              {/* Remove Button */}
-              <button
-                onClick={() => removeTimeSlot(day, slotIndex)}
-                className="p-1 text-red-500 hover:text-red-700"
-                disabled={slot.isBooked}
-              >
-                <X className="w-4 h-4" />
-              </button>
+           {/* Remove Button */}
+<button
+  onClick={() => removeTimeSlot(day, slotIndex)}
+  className="p-1 text-red-500 hover:text-red-700"
+  disabled={slot.bookedDates && slot.bookedDates.length > 0}
+>
+  <X className="w-4 h-4" />
+</button>
             </div>
           ))}
         </div>
