@@ -1,6 +1,7 @@
 import {validationResult} from 'express-validator';
 import Session from '../models/SessionModel.js';
 import User from '../models/UserModel.js';
+import AvailabilityModel from '../models/AvailabilityModel.js';
 
 const sessionController = {}
 function convertTo24Hour(timeStr) {
@@ -36,9 +37,28 @@ sessionController.list = async(req,res)=>{
         const session = await Session.find(filter)
             .populate('mentorId', 'name email') // Add fields you want from mentor
             .populate('studentId', 'name')
-            .sort(sortOption)
             
-        return res.json(session)
+            .sort(sortOption)
+         if (req.role === 'student') {
+        //     console.log("role",req.role);
+            
+          await Promise.all(
+        session.map(async (s) => {
+          const availability = await AvailabilityModel.findOne({
+            mentorId: s.mentorId?._id
+          });
+          console.log("aca",s);
+          
+          s._doc.availability = availability || null;
+        })
+      );  
+         }
+
+        // Unified response
+        return res.json({
+            session,
+            
+        });
     }catch(err){
         console.log(err)
         return res.status(500).json({errors:'something went wrong'})
@@ -46,7 +66,7 @@ sessionController.list = async(req,res)=>{
 }
 sessionController.listSessionById = async(req,res)=>{
     try {
-        const sessions = await Session.find({mentorId:req.params.id})
+        const sessions = await Session.find({mentorId:req.params.id}).populate({path:'mentorId',select:'name'});
         console.log("ses",sessions);
        
 
@@ -108,95 +128,70 @@ sessionController.create = async(req,res)=>{
     }
 }
 
-// sessionController.update=async(req,res)=>{
-//     const errors = validationResult(req)
-//         if(!errors.isEmpty()){
-//             return res.status(400).json({errors:errors.array()})
-//         }
-//         const id = req.params.id
-//         const {status,date,startTime,endTime,topic,studentId,duration} = req.body
 
-//         try{
-//             const session = await Session.findById(id)
-//             if(!session){
-//                 return res.status(400).json({errors:'Session not found'})
-
-//             }
-//             if(startTime + endTime > duration){
-//                 return res.status(400).json({errors:'startTime endTime cannot be greater than duration'})
-//             }
-
-//             const updatedSession = await Session.findByIdAndUpdate(id,{studentId:req.body.studentId,...req.body},{new:true})
-//             return res.json(updatedSession)
-//         }catch(err){
-//             console.log(err)
-//             return res.status(500).json({errors:'Something went wrong'})
-//         }
-//     }
 
 sessionController.update = async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const id = req.params.id;
+  const { date, startTime, endTime } = req.body;
+
+  try {
+    const existingSession = await Session.findById(id);
+    if (!existingSession) {
+      return res.status(404).json({ errors: 'Session not found' });
     }
-    
-    const id = req.params.id;
-    const { status, date, startTime, endTime, topic, studentId, duration } = req.body;
 
-    try {
-        const session = await Session.findById(id);
-        if (!session) {
-            return res.status(404).json({ errors: 'Session not found' });
-        }
+    // Validate time logic
+    const convertTimeToMinutes = (timeString) => {
+      const [hours, minutes] = timeString.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
 
-        // Convert time strings to minutes for calculation
-        const convertTimeToMinutes = (timeString) => {
-            const [hours, minutes] = timeString.split(':').map(Number);
-            return hours * 60 + minutes;
-        };
-
-        // If startTime and endTime are provided, validate them
-        if (startTime && endTime) {
-            const startMinutes = convertTimeToMinutes(startTime);
-            const endMinutes = convertTimeToMinutes(endTime);
-            const sessionDuration = endMinutes - startMinutes;
-
-            // Check if end time is after start time
-            if (sessionDuration <= 0) {
-                return res.status(400).json({ 
-                    errors: 'End time must be after start time' 
-                });
-            }
-
-            // Check if calculated duration matches the provided duration (if provided)
-            const expectedDuration = duration || session.duration || 60;
-            if (sessionDuration !== expectedDuration) {
-                return res.status(400).json({ 
-                    errors: `Session duration (${sessionDuration} minutes) does not match expected duration (${expectedDuration} minutes)` 
-                });
-            }
-        }
-
-        // Validate duration if provided
-        if (duration !== undefined) {
-            if (duration < 30 || duration > 120) {
-                return res.status(400).json({ 
-                    errors: 'Duration must be between 30 and 120 minutes' 
-                });
-            }
-        }
-
-        const updatedSession = await Session.findByIdAndUpdate(
-            id,
-            { studentId: req.body.studentId, ...req.body },
-            { new: true, runValidators: true }
-        );
-        
-        return res.json(updatedSession);
-    } catch (err) {
-        console.log(err);
-        return res.status(500).json({ errors: 'Something went wrong' });
+    if (startTime && endTime) {
+      const startMinutes = convertTimeToMinutes(startTime);
+      const endMinutes = convertTimeToMinutes(endTime);
+      if (endMinutes <= startMinutes) {
+        return res.status(400).json({ errors: 'End time must be after start time' });
+      }
     }
+
+    // If date/time changed, save old slot to history
+    const rescheduleEntry = {
+      previousDate: existingSession.date,
+      previousStartTime: existingSession.startTime,
+      previousEndTime: existingSession.endTime,
+      rescheduledAt: new Date()
+    };
+
+    // push to rescheduleHistory array (create if not exist)
+    existingSession.rescheduleHistory = existingSession.rescheduleHistory || [];
+    existingSession.rescheduleHistory.push(rescheduleEntry);
+
+    // Update new date/time
+    existingSession.date = date;
+    existingSession.startTime = startTime;
+    existingSession.endTime = endTime;
+
+    // If booked → mark as rescheduled
+    if (existingSession.status === 'booked') {
+      existingSession.status = 'rescheduled';
+    }
+
+    await existingSession.save();
+
+    return res.json({
+      message: 'Session updated & reschedule history saved',
+      session: existingSession,
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ errors: 'Something went wrong' });
+  }
 };
 
 sessionController.reschedule = async(req,res)=>{
