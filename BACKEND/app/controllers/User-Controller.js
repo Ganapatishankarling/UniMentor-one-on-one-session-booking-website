@@ -9,8 +9,42 @@ const userController = {}
 
 userController.list = async(req,res)=>{
     try{
-        const users = await User.find()
-        return res.json(users)
+        const { search, expertise, role } = req.query;
+        // Build the filter object
+        let filter = {};
+        
+        // Get user role from token (assuming you have middleware that sets req.user)
+        const userRole = req.user?.role;
+        
+        // If user is a student, only show mentors
+        if (userRole === 'student') {
+            filter.role = 'mentor';
+            filter.isActive = 'approved'; // Only show approved mentors to students
+        } else {
+            // For non-students (admin, mentors), allow role filtering
+            if (role) {
+                filter.role = role;
+            }
+        }
+        
+        // Add search functionality
+        if (search && search.trim() !== '') {
+            const searchRegex = new RegExp(search.trim(), 'i'); // Case-insensitive search
+            filter.$or = [
+                { name: searchRegex },
+                { bio: searchRegex },
+                { university: searchRegex },
+                { expertiseAreas: searchRegex }
+            ];
+        }
+        
+        // Filter by expertise area
+        if (expertise && expertise !== 'All') {
+            filter.expertiseAreas = new RegExp(expertise.trim(), 'i');
+        }
+        
+        const users = await User.find(filter);
+        return res.json(users);
     }catch(err){
         console.log(err)
         res.status(500).json({errors:'Something went wrong'})
@@ -250,4 +284,5 @@ userController.remove = async (req, res) => {
         res.status(500).json({ error: 'Something went wrong' });
     }
 };
+
 export default userController
