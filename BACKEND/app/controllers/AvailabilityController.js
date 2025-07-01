@@ -197,6 +197,7 @@ availabilityController.manageBlockedDates = async (req, res) => {
 };
 
 // Book a time slot (used when a session is created)
+// In availabilityController.js - UPDATE this method
 availabilityController.bookSlot = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -204,20 +205,22 @@ availabilityController.bookSlot = async (req, res) => {
     }
     
     try {
-        const { mentorId, day, slotIndex, sessionId } = req.body;
+        const { mentorId, day, slotIndex, sessionId, date } = req.body; // ADD date parameter
         
-        // Use findOneAndUpdate with conditions to prevent race conditions
         const updatePath = `weeklySchedule.${day.toLowerCase()}.timeSlots.${slotIndex}`;
         
+        // UPDATED: Check if slot is available AND not booked for this specific date
         const updatedAvailability = await AvailabilityModel.findOneAndUpdate(
             {
                 mentorId,
                 [`${updatePath}.isAvailable`]: true,
-                [`${updatePath}.isBooked`]: false
+                [`${updatePath}.bookedDates`]: { $ne: date } // NOT booked for this date
             },
             {
+                $addToSet: {
+                    [`${updatePath}.bookedDates`]: date // ADD date to bookedDates array
+                },
                 $set: {
-                    [`${updatePath}.isBooked`]: true,
                     [`${updatePath}.sessionId`]: sessionId
                 }
             },
@@ -226,7 +229,7 @@ availabilityController.bookSlot = async (req, res) => {
         
         if (!updatedAvailability) {
             return res.status(400).json({ 
-                errors: 'Slot is not available or already booked by another student' 
+                errors: 'Slot is not available or already booked for this date' 
             });
         }
         
@@ -301,7 +304,7 @@ availabilityController.getAvailableSlots = async (req, res) => {
     }
 };
 
-// Release a booked slot
+// In availabilityController.js - UPDATE this method
 availabilityController.releaseSlot = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -309,20 +312,23 @@ availabilityController.releaseSlot = async (req, res) => {
     }
     
     try {
-        const { mentorId, day, slotIndex } = req.body;
+        const { mentorId, day, slotIndex, date } = req.body; // ADD date parameter
         
         const availability = await AvailabilityModel.findOne({ mentorId });
         if (!availability) {
             return res.status(404).json({ errors: 'Availability not found' });
         }
         
-        // Update the slot
         const updatePath = `weeklySchedule.${day.toLowerCase()}.timeSlots.${slotIndex}`;
+        
+        // UPDATED: Remove specific date from bookedDates array
         const updatedAvailability = await AvailabilityModel.findByIdAndUpdate(
             availability._id,
             {
+                $pull: {
+                    [`${updatePath}.bookedDates`]: date // REMOVE date from array
+                },
                 $set: {
-                    [`${updatePath}.isBooked`]: false,
                     [`${updatePath}.sessionId`]: null
                 }
             },
