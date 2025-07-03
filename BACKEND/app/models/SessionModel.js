@@ -10,7 +10,6 @@ const SessionSchema = new Schema({
     startTime:String,
     sessionFee:{type:String,default:"0"},
     endTime:String,
-
     duration: {
         type: Number, 
         default: 60,  
