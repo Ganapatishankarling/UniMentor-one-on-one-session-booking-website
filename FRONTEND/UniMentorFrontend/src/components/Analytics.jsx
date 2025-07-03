@@ -3,6 +3,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, Area, AreaChart
 } from 'recharts';
+import { jsPDF } from 'jspdf';
+import jsPDFAutoTable from 'jspdf-autotable';
 import { 
   Calendar, Clock, TrendingUp, TrendingDown, DollarSign, Users, 
   BookOpen, AlertCircle, CheckCircle, XCircle, Filter, Download,
@@ -22,6 +24,7 @@ const Analytics = ({ mentorId }) => {
   const [cancellationAnalytics, setCancellationAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
  useEffect(()=>{
@@ -30,9 +33,390 @@ const Analytics = ({ mentorId }) => {
     const {data} = useSelector((state)=>{
         return state.account
     })
-    console.log("data",data);
     
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
+
+  const exportToCSV = (data, filename) => {
+  // Convert data to CSV format
+  const csvContent = convertToCSV(data);
+  
+  // Create blob and download
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+const convertToCSV = (data) => {
+  const headers = Object.keys(data[0]).join(',');
+  const rows = data.map(row => 
+    Object.values(row).map(value => 
+      typeof value === 'string' && value.includes(',') 
+        ? `"${value}"` 
+        : value
+    ).join(',')
+  ).join('\n');
+  return `${headers}\n${rows}`;
+};
+
+const exportAnalyticsData = () => {
+  if (!analytics) {
+    alert('No analytics data available to export');
+    return;
+  }
+
+  try {
+    // Prepare data based on active tab
+    switch (activeTab) {
+      case 'overview':
+        const overviewData = [
+          {
+            Metric: 'Total Earnings',
+            Value: analytics.overview.totalEarnings,
+            Type: 'Currency'
+          },
+          {
+            Metric: 'Total Sessions',
+            Value: analytics.overview.totalSessions,
+            Type: 'Count'
+          },
+          {
+            Metric: 'Total Bookings',
+            Value: analytics.overview.totalBookings,
+            Type: 'Count'
+          },
+          {
+            Metric: 'Conversion Rate',
+            Value: `${analytics.overview.conversionRate}%`,
+            Type: 'Percentage'
+          },
+          {
+            Metric: 'This Month Earnings',
+            Value: analytics.overview.thisMonthEarnings,
+            Type: 'Currency'
+          },
+          {
+            Metric: 'This Month Sessions',
+            Value: analytics.overview.thisMonthSessions,
+            Type: 'Count'
+          },
+          {
+            Metric: 'This Month Bookings',
+            Value: analytics.overview.thisMonthBookings,
+            Type: 'Count'
+          }
+        ];
+        exportToCSV(overviewData, `analytics-overview-${selectedYear}.csv`);
+        break;
+
+      case 'trends':
+        if (monthlyData && monthlyData.monthlyAnalytics) {
+          const trendsData = monthlyData.monthlyAnalytics.map(month => ({
+            Month: month.monthName || month.month,
+            Earnings: month.earnings,
+            Sessions: month.sessions,
+            Bookings: month.bookings,
+            'Conversion Rate': `${month.conversionRate || 0}%`,
+            Transactions: month.transactions || 0
+          }));
+          exportToCSV(trendsData, `monthly-trends-${selectedYear}.csv`);
+        } else {
+          alert('No monthly trends data available');
+        }
+        break;
+
+      case 'sessions':
+        if (topSessions && topSessions.length > 0) {
+          const sessionsData = topSessions.map(session => ({
+            Topic: session.topic,
+            'Session Count': session.sessionCount,
+            'Completion Rate': `${session.completionRate?.toFixed(1)}%`,
+            'Average Fee': session.avgSessionFee,
+            'Booking Count': session.bookingCount
+          }));
+          exportToCSV(sessionsData, `top-sessions-${selectedYear}.csv`);
+        } else {
+          alert('No sessions data available');
+        }
+        break;
+
+      case 'bookings':
+        if (bookingTimeAnalytics) {
+          // Export day of week data
+          const dayData = Object.entries(bookingTimeAnalytics.dayOfWeekAnalytics).map(([day, data]) => ({
+            'Day of Week': day,
+            'Total Bookings': data.total,
+            'Completed': data.completed,
+            'Cancelled': data.cancelled,
+            'Confirmed': data.confirmed,
+            'Pending': data.pending
+          }));
+          exportToCSV(dayData, `booking-analytics-by-day-${selectedYear}.csv`);
+        } else {
+          alert('No booking analytics data available');
+        }
+        break;
+
+      case 'cancellations':
+        if (cancellationAnalytics) {
+          const cancellationData = [
+            {
+              Metric: 'Booking Cancellation Rate',
+              Value: `${cancellationAnalytics.bookingCancellationRate}%`
+            },
+            {
+              Metric: 'Session Cancellation Rate',
+              Value: `${cancellationAnalytics.sessionCancellationRate}%`
+            },
+            {
+              Metric: 'Total Cancelled Bookings',
+              Value: cancellationAnalytics.totalCancelledBookings
+            },
+            {
+              Metric: 'Total Cancelled Sessions',
+              Value: cancellationAnalytics.totalCancelledSessions
+            },
+            {
+              Metric: 'Recent Cancellations',
+              Value: cancellationAnalytics.recentCancellations
+            }
+          ];
+          exportToCSV(cancellationData, `cancellation-analytics-${selectedYear}.csv`);
+        } else {
+          alert('No cancellation data available');
+        }
+        break;
+
+      default:
+        // Export all available data as a comprehensive report
+        const allData = [
+          { Section: 'Overview', Data: JSON.stringify(analytics.overview) },
+          { Section: 'Monthly Data', Data: monthlyData ? JSON.stringify(monthlyData) : 'Not available' },
+          { Section: 'Top Sessions', Data: topSessions ? JSON.stringify(topSessions) : 'Not available' }
+        ];
+        exportToCSV(allData, `complete-analytics-${selectedYear}.csv`);
+    }
+    
+    // Show success message
+    alert('Analytics data exported successfully!');
+    
+  } catch (error) {
+    console.error('Export failed:', error);
+    alert('Failed to export data. Please try again.');
+  }
+};
+
+const exportToPDF = () => {
+  if (!analytics) {
+    alert('No analytics data available to export');
+    return;
+  }
+
+  try {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(59, 130, 246);
+    doc.text('Analytics Dashboard Report', 20, 20);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 30);
+    doc.text(`Year: ${selectedYear}`, 20, 40);
+    doc.text(`Report Type: ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`, 20, 50);
+
+    let yPos = 70;
+
+    // Add content based on active tab
+    switch (activeTab) {
+      case 'overview':
+        if (analytics.overview) {
+          doc.setFontSize(16);
+          doc.setTextColor(59, 130, 246);
+          doc.text('Overview Metrics', 20, yPos);
+          yPos += 20;
+          
+          doc.setFontSize(12);
+          doc.setTextColor(0, 0, 0);
+          doc.text(`Total Earnings: ${formatCurrency(analytics.overview.totalEarnings)}`, 20, yPos);
+          doc.text(`Total Sessions: ${analytics.overview.totalSessions}`, 20, yPos + 10);
+          doc.text(`Total Bookings: ${analytics.overview.totalBookings}`, 20, yPos + 20);
+          doc.text(`Conversion Rate: ${analytics.overview.conversionRate}%`, 20, yPos + 30);
+          doc.text(`This Month Earnings: ${formatCurrency(analytics.overview.thisMonthEarnings)}`, 20, yPos + 40);
+          doc.text(`This Month Sessions: ${analytics.overview.thisMonthSessions}`, 20, yPos + 50);
+          doc.text(`This Month Bookings: ${analytics.overview.thisMonthBookings}`, 20, yPos + 60);
+          
+          yPos += 80;
+          
+          // Session Status
+          doc.setFontSize(14);
+          doc.setTextColor(59, 130, 246);
+          doc.text('Session Status Breakdown', 20, yPos);
+          yPos += 15;
+          
+          doc.setFontSize(12);
+          doc.setTextColor(0, 0, 0);
+          if (analytics.sessionStatusBreakdown) {
+            doc.text(`Completed: ${analytics.sessionStatusBreakdown.completed}`, 20, yPos);
+            doc.text(`Pending: ${analytics.sessionStatusBreakdown.pending}`, 20, yPos + 10);
+            doc.text(`Cancelled: ${analytics.sessionStatusBreakdown.cancelled}`, 20, yPos + 20);
+          }
+        }
+        break;
+        
+      case 'sessions':
+        if (topSessions && topSessions.length > 0) {
+          doc.setFontSize(16);
+          doc.setTextColor(59, 130, 246);
+          doc.text('Top Performing Sessions', 20, yPos);
+          yPos += 20;
+          
+          doc.setFontSize(12);
+          doc.setTextColor(0, 0, 0);
+          
+          topSessions.slice(0, 10).forEach((session, index) => {
+            doc.text(`${index + 1}. ${session.topic}`, 20, yPos);
+            doc.text(`   Sessions: ${session.sessionCount}, Completion: ${session.completionRate?.toFixed(1)}%`, 25, yPos + 8);
+            doc.text(`   Avg Fee: ${formatCurrency(session.avgSessionFee)}, Bookings: ${session.bookingCount}`, 25, yPos + 16);
+            yPos += 25;
+            
+            // Add new page if needed
+            if (yPos > 250) {
+              doc.addPage();
+              yPos = 20;
+            }
+          });
+        }
+        break;
+        
+      case 'cancellations':
+        if (cancellationAnalytics) {
+          doc.setFontSize(16);
+          doc.setTextColor(59, 130, 246);
+          doc.text('Cancellation Analytics', 20, yPos);
+          yPos += 20;
+          
+          doc.setFontSize(12);
+          doc.setTextColor(0, 0, 0);
+          doc.text(`Booking Cancellation Rate: ${cancellationAnalytics.bookingCancellationRate}%`, 20, yPos);
+          doc.text(`Session Cancellation Rate: ${cancellationAnalytics.sessionCancellationRate}%`, 20, yPos + 10);
+          doc.text(`Total Cancelled Bookings: ${cancellationAnalytics.totalCancelledBookings}`, 20, yPos + 20);
+          doc.text(`Total Cancelled Sessions: ${cancellationAnalytics.totalCancelledSessions}`, 20, yPos + 30);
+          doc.text(`Recent Cancellations: ${cancellationAnalytics.recentCancellations}`, 20, yPos + 40);
+        }
+        break;
+
+      case 'trends':
+        if (monthlyData && monthlyData.monthlyAnalytics) {
+          doc.setFontSize(16);
+          doc.setTextColor(59, 130, 246);
+          doc.text('Monthly Trends', 20, yPos);
+          yPos += 20;
+          
+          doc.setFontSize(12);
+          doc.setTextColor(0, 0, 0);
+          
+          monthlyData.monthlyAnalytics.slice(0, 12).forEach((month, index) => {
+            doc.text(`${month.monthName || month.month}:`, 20, yPos);
+            doc.text(`   Earnings: ${formatCurrency(month.earnings)}, Sessions: ${month.sessions}`, 25, yPos + 8);
+            doc.text(`   Bookings: ${month.bookings}, Conversion: ${month.conversionRate || 0}%`, 25, yPos + 16);
+            yPos += 25;
+            
+            if (yPos > 250) {
+              doc.addPage();
+              yPos = 20;
+            }
+          });
+        }
+        break;
+
+      case 'bookings':
+        if (bookingTimeAnalytics) {
+          doc.setFontSize(16);
+          doc.setTextColor(59, 130, 246);
+          doc.text('Booking Analytics', 20, yPos);
+          yPos += 20;
+          
+          doc.setFontSize(14);
+          doc.text('Bookings by Day of Week:', 20, yPos);
+          yPos += 15;
+          
+          doc.setFontSize(12);
+          doc.setTextColor(0, 0, 0);
+          
+          Object.entries(bookingTimeAnalytics.dayOfWeekAnalytics).forEach(([day, data]) => {
+            doc.text(`${day}: Total ${data.total}, Completed ${data.completed}, Cancelled ${data.cancelled}`, 20, yPos);
+            yPos += 12;
+          });
+        }
+        break;
+        
+      default:
+        doc.text('Please select a specific tab for detailed PDF export.', 20, yPos);
+    }
+
+    // Save the PDF
+    doc.save(`analytics-${activeTab}-${selectedYear}.pdf`);
+    alert('PDF exported successfully!');
+
+  } catch (error) {
+    console.error('PDF export failed:', error);
+    alert(`Failed to export PDF: ${error.message}`);
+  }
+};
+
+const exportOptions = [
+  {
+    label: 'Export as CSV',
+    action: () => {
+      exportAnalyticsData();
+      setShowExportMenu(false);
+    }
+  },
+  {
+    label: 'Export as JSON',
+    action: () => {
+      exportToJSON();
+      setShowExportMenu(false);
+    }
+  },
+  {
+    label: 'Export as PDF',
+    action: () => {
+      exportToPDF();
+      setShowExportMenu(false);
+    }
+  }
+];
+
+const exportToJSON = () => {
+  const dataToExport = {
+    exportDate: new Date().toISOString(),
+    selectedYear,
+    activeTab,
+    analytics: analytics,
+    monthlyData: monthlyData,
+    dailyData: dailyData,
+    topSessions: topSessions,
+    bookingTimeAnalytics: bookingTimeAnalytics,
+    cancellationAnalytics: cancellationAnalytics
+  };
+
+  const jsonString = JSON.stringify(dataToExport, null, 2);
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `analytics-data-${selectedYear}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+};
 
   useEffect(() => {
   if (data?._id) {
@@ -45,7 +429,6 @@ const Analytics = ({ mentorId }) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      console.log("token",token);
       
       const headers = {
         'Authorization': `${token}`,
@@ -55,7 +438,6 @@ const Analytics = ({ mentorId }) => {
       // Helper function to safely fetch and parse JSON
       
       // Fetch analytics data with proper error handling
-      console.log("men",mentorId);
       
       const overview = await axios.get(`/analytics/mentor/${data?._id}`, { headers }).then(res => res.data).catch(() => null);
       const monthly = await axios.get(`/analytics/mentor/${data?._id}/monthly?year=${selectedYear}`, { headers }).then(res => res.data).catch(() => null);
@@ -71,137 +453,13 @@ const cancellation = await axios.get(`/analytics/mentor/${data?._id}/cancellatio
       if (bookingTime) setBookingTimeAnalytics(bookingTime);
       if (cancellation) setCancellationAnalytics(cancellation);
 
-      // If no data was fetched, show mock data for development
-      // if (!overview && !monthly && !daily && !sessions && !bookingTime && !cancellation) {
-      //   console.warn('No analytics data available. Using mock data for development.');
-      //   setMockData();
-      // }
 
     } catch (error) {
       console.error('Error fetching analytics:', error);
-      // setMockData(); // Fallback to mock data
     } finally {
       setLoading(false);
     }
   };
-
-  // Mock data for development/testing
-  // const setMockData = () => {
-  //   const mockAnalytics = {
-  //     overview: {
-  //       totalEarnings: 15000,
-  //       totalSessions: 45,
-  //       totalBookings: 52,
-  //       completedSessions: 40,
-  //       pendingSessions: 3,
-  //       cancelledSessions: 2,
-  //       confirmedBookings: 48,
-  //       pendingBookings: 2,
-  //       cancelledBookings: 2,
-  //       completedBookings: 40,
-  //       averageSessionValue: 333.33,
-  //       conversionRate: 76.92,
-  //       thisMonthEarnings: 3500,
-  //       thisMonthSessions: 12,
-  //       thisMonthBookings: 15
-  //     },
-  //     monthlyData: Array.from({ length: 12 }, (_, i) => ({
-  //       month: new Date(2024, i).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-  //       monthName: new Date(2024, i).toLocaleDateString('en-US', { month: 'long' }),
-  //       earnings: Math.floor(Math.random() * 3000) + 1000,
-  //       sessions: Math.floor(Math.random() * 10) + 5,
-  //       bookings: Math.floor(Math.random() * 12) + 6,
-  //       conversionRate: Math.floor(Math.random() * 30) + 70,
-  //       transactions: Math.floor(Math.random() * 8) + 4
-  //     })),
-  //     recentTransactions: Array.from({ length: 5 }, (_, i) => ({
-  //       id: `txn_${i + 1}`,
-  //       sessionId: `session_${i + 1}`,
-  //       amount: (Math.random() * 500 + 200).toFixed(2),
-  //       createdAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
-  //       paymentMethod: 'Razorpay'
-  //     })),
-  //     sessionStatusBreakdown: { completed: 40, pending: 3, cancelled: 2 },
-  //     bookingStatusBreakdown: { confirmed: 48, pending: 2, cancelled: 2, completed: 40 }
-  //   };
-
-  //   const mockTopSessions = [
-  //     { topic: 'JavaScript Fundamentals', sessionCount: 12, completionRate: 85.5, avgSessionFee: 350, bookingCount: 14 },
-  //     { topic: 'React Development', sessionCount: 8, completionRate: 92.1, avgSessionFee: 400, bookingCount: 10 },
-  //     { topic: 'Node.js Backend', sessionCount: 6, completionRate: 78.3, avgSessionFee: 450, bookingCount: 8 }
-  //   ];
-
-  //   const mockBookingTime = {
-  //     dayOfWeekAnalytics: {
-  //       Monday: { total: 8, completed: 6, cancelled: 1, confirmed: 7, pending: 1 },
-  //       Tuesday: { total: 7, completed: 6, cancelled: 1, confirmed: 6, pending: 0 },
-  //       Wednesday: { total: 9, completed: 8, cancelled: 0, confirmed: 8, pending: 1 },
-  //       Thursday: { total: 6, completed: 5, cancelled: 1, confirmed: 5, pending: 0 },
-  //       Friday: { total: 10, completed: 9, cancelled: 1, confirmed: 9, pending: 0 },
-  //       Saturday: { total: 8, completed: 7, cancelled: 0, confirmed: 7, pending: 1 },
-  //       Sunday: { total: 4, completed: 3, cancelled: 1, confirmed: 3, pending: 0 }
-  //     },
-  //     timeSlotAnalytics: {
-  //       'Morning (6AM-12PM)': { total: 15, completed: 13, cancelled: 1, confirmed: 14, pending: 1 },
-  //       'Afternoon (12PM-5PM)': { total: 20, completed: 18, cancelled: 2, confirmed: 18, pending: 0 },
-  //       'Evening (5PM-9PM)': { total: 12, completed: 11, cancelled: 1, confirmed: 11, pending: 0 },
-  //       'Night (9PM-6AM)': { total: 5, completed: 4, cancelled: 1, confirmed: 4, pending: 0 }
-  //     }
-  //   };
-
-  //   const mockCancellation = {
-  //     bookingCancellationRate: 3.8,
-  //     sessionCancellationRate: 4.4,
-  //     totalCancelledBookings: 2,
-  //     totalCancelledSessions: 2,
-  //     recentCancellations: 1,
-  //     cancellationByDay: {
-  //       Monday: 1,
-  //       Tuesday: 0,
-  //       Wednesday: 0,
-  //       Thursday: 1,
-  //       Friday: 0,
-  //       Saturday: 0,
-  //       Sunday: 0
-  //     },
-  //     cancellationTrend: {
-  //       last30Days: 1,
-  //       previous30Days: 2,
-  //       trendPercentage: -50,
-  //       trendDirection: 'down'
-  //     }
-  //   };
-
-  //   setAnalytics(mockAnalytics);
-  //   setTopSessions(mockTopSessions);
-  //   setBookingTimeAnalytics(mockBookingTime);
-  //   setCancellationAnalytics(mockCancellation);
-  //   setMonthlyData({
-  //     year: 2024,
-  //     monthlyAnalytics: mockAnalytics.monthlyData,
-  //     yearTotal: {
-  //       earnings: mockAnalytics.monthlyData.reduce((sum, month) => sum + month.earnings, 0),
-  //       sessions: mockAnalytics.monthlyData.reduce((sum, month) => sum + month.sessions, 0),
-  //       bookings: mockAnalytics.monthlyData.reduce((sum, month) => sum + month.bookings, 0),
-  //       transactions: mockAnalytics.monthlyData.reduce((sum, month) => sum + month.transactions, 0)
-  //     }
-  //   });
-  //   setDailyData({
-  //     year: 2024,
-  //     month: new Date().getMonth() + 1,
-  //     monthName: new Date().toLocaleDateString('en-US', { month: 'long' }),
-  //     dailyAnalytics: Array.from({ length: 30 }, (_, i) => ({
-  //       date: i + 1,
-  //       fullDate: new Date(2024, new Date().getMonth(), i + 1).toISOString().split('T')[0],
-  //       dayName: new Date(2024, new Date().getMonth(), i + 1).toLocaleDateString('en-US', { weekday: 'short' }),
-  //       earnings: Math.floor(Math.random() * 200) + 50,
-  //       sessions: Math.floor(Math.random() * 3) + 1,
-  //       bookings: Math.floor(Math.random() * 4) + 1,
-  //       transactions: Math.floor(Math.random() * 2) + 1
-  //     })),
-  //     monthTotal: { earnings: 4500, sessions: 45, bookings: 52, transactions: 38 }
-  //   });
-  // };
 
   const StatCard = ({ title, value, change, icon: Icon, color = "blue" }) => (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -246,9 +504,6 @@ const cancellation = await axios.get(`/analytics/mentor/${data?._id}/cancellatio
     );
   }
 
-  // Show notice if using mock data
-  // const usingMockData = !analytics?.overview?.totalEarnings || analytics?.overview?.totalEarnings === 15000;
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -264,10 +519,31 @@ const cancellation = await axios.get(`/analytics/mentor/${data?._id}/cancellatio
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
-          <button className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-            <Download className="w-4 h-4" />
-            <span>Export</span>
-          </button>
+<div className="relative">
+  <button 
+    onClick={() => setShowExportMenu(!showExportMenu)}
+    className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+  >
+    <Download className="w-4 h-4" />
+    <span>Export</span>
+  </button>
+  
+{showExportMenu && (
+  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border">
+    <div className="py-1">
+      {exportOptions.map((option, index) => (
+        <button
+          key={index}
+          onClick={option.action}
+          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+</div>
         </div>
       </div>
 
