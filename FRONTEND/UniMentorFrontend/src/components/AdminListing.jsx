@@ -26,7 +26,6 @@ export default function AdminDashboard() {
   const { data: currentUser } = useSelector((state) => state.account)
   const { categories } = useSelector((state) => state.categories)
     const { users, loading:userLoading, error } = useSelector((state) => state.users);
-console.log("s",currentUser);
 
   // Fetch current user data and categories when component mounts
   useEffect(() => {
@@ -39,10 +38,10 @@ console.log("s",currentUser);
   const fetchSessions = async () => {
     setSessionLoading(true)
     try {
-      const response = await axios.get('/list-sessions', {
+      const response = await axios.get('/admin/bookings', {
         headers: { Authorization: localStorage.getItem('token') }
       })
-      setSessions(response.data)
+      setSessions(response.data.bookings)
     } catch (err) {
       console.error('Error fetching sessions:', err)
       toast.error('Failed to load sessions')
@@ -90,7 +89,7 @@ console.log("s",currentUser);
     }
     
     try {
-      await axios.delete(`/admin/sessions/${id}`, {
+      await axios.delete(`/admin/bookings/${id}`, {
         headers: { Authorization: localStorage.getItem('token') }
       })
       toast.success('Session deleted successfully')
@@ -105,7 +104,7 @@ console.log("s",currentUser);
   const handleUpdateSessionStatus = async (id, status) => {
     try {
       await axios.put(
-        `/admin/sessions/${id}/status`, 
+        `/admin/bookings/${id}/status`, 
         { status },
         { headers: { "Content-Type": "application/json", Authorization: localStorage.getItem('token') } }
       )
