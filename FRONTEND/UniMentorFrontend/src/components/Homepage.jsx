@@ -5,7 +5,9 @@ import { listUsers } from "../slices/userSlice";
 import { fetchUserAccount } from "../slices/accountSlice";
 import { toast } from "react-toastify";
 import axios from "../config/axios.jsx";
-import { Filter } from "lucide-react";
+import { useCallback } from 'react';
+import { debounce } from 'lodash';
+import { Filter, Search, Star, MapPin, User, GraduationCap, Clock } from "lucide-react";
 
 export default function Homepage() {
   const dispatch = useDispatch();
@@ -17,15 +19,28 @@ export default function Homepage() {
   const [loadingRatings, setLoadingRatings] = useState(true);
   const searchInputRef = useRef(null);
   const filterDropdownRef = useRef(null);
+
+  const debouncedSearch = useCallback(
+    debounce((searchValue) => {
+        setSearchTerm(searchValue);
+    }, 500),
+    []
+);
+
   
   const { users, loading, error } = useSelector((state) => state.users);
   
-  let mentors = users && users.length > 0 ? users.filter(user => user.role === "mentor") : [];  
+  let mentors = users && users.length > 0 ? users : [];
   
   useEffect(() => {
-    dispatch(listUsers());
+    const queryParams = {
+        role: 'mentor',
+        ...(searchTerm && { search: searchTerm }),
+        ...(selectedExpertise !== 'All' && { expertise: selectedExpertise })
+    };
+    dispatch(listUsers(queryParams));
     dispatch(fetchUserAccount());
-  }, [dispatch]);
+  }, [dispatch,searchTerm, selectedExpertise]);
 
   // Fetch mentor ratings
   useEffect(() => {
@@ -94,33 +109,17 @@ export default function Homepage() {
       ))]
     : ["All"];
   
-  const filteredMentors = mentors && mentors.length > 0
-    ? mentors.filter(mentor => {
-        const matchesSearch = searchTerm === "" || 
-          mentor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (mentor.bio && mentor.bio.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (mentor.university && mentor.university.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (mentor.expertiseAreas && mentor.expertiseAreas.toLowerCase().includes(searchTerm.toLowerCase()));
-        
-        const matchesExpertise = selectedExpertise === "All" || 
-          (mentor.expertiseAreas && mentor.expertiseAreas.split(',')
-            .map(item => item.trim())
-            .includes(selectedExpertise));
-            
-        const approved = mentor.isActive === "approved"
-        return matchesSearch && matchesExpertise && approved;
-      })
+const filteredMentors = mentors && mentors.length > 0
+    ? mentors.filter(mentor => mentor.isActive === "approved")
     : [];
   
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-  };
-  
+ const handleSearchChange = (e) => {
+    debouncedSearch(e.target.value);
+};
   const handleExpertiseChange = (expertise) => {
     setSelectedExpertise(expertise);
     setShowFilterDropdown(false);
-  };
-  
+};
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchInputRef.current) {
@@ -142,90 +141,99 @@ export default function Homepage() {
     
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-xl font-semibold text-gray-700">Loading mentors...</div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center">
+          <div className="w-16 h-16 border-4 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="text-xl font-semibold text-gray-900">Loading mentors...</div>
+          <p className="text-gray-600 text-sm mt-2">Please wait while we fetch the data</p>
+        </div>
       </div>
     );
   }
   
   return (
-    <div className="bg-gradient-to-b from-gray-50 to-slate-100 min-h-screen">      
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-0">
-        <div className="hidden md:flex flex-1 justify-center px-6">
-          <div className="w-full max-w-xl flex items-center space-x-4">
-            {/* Search Form */}
-            <div className="flex-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-slate-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                </svg>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 py-8">      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header Section */}
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-600 rounded-2xl mb-4 shadow-lg">
+            <GraduationCap className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">Find Your Perfect Mentor</h1>
+          <p className="text-gray-600 text-lg">Connect with experienced professionals who can guide your learning journey</p>
+        </div>
+
+        {/* Search and Filter Section */}
+        <div className="mb-8">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              {/* Search Form */}
+              <div className="flex-1 relative w-full">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search mentors by name, expertise, or university..."
+                  onChange={handleSearchChange}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearchSubmit(e);
+                    }
+                  }}
+                  className="pl-12 pr-4 py-3 w-full border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-gray-50 text-gray-900 placeholder-gray-500"
+                />
               </div>
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search mentors..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSearchSubmit(e);
-                  }
-                }}
-                className="pl-10 pr-3 py-2 w-full border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all bg-white"
-              />
-            </div>
-            
-            {/* Filter Icon with Dropdown */}
-            <div className="relative" ref={filterDropdownRef}>
-              <button
-                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                className="flex items-center justify-center p-2 border border-slate-300 rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-all"
-              >
-                <Filter className="h-5 w-5" />
-              </button>
               
-              {showFilterDropdown && (
-                <div className="absolute z-20 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden right-0">
-                  <div className="py-2">
-                    <div className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-gray-100">
-                      Filter by Expertise
-                    </div>
-                    <div className="max-h-60 overflow-y-auto py-1">
-                      {expertiseAreas.map((area, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleExpertiseChange(area)}
-                          className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 transition-colors ${selectedExpertise === area ? 'bg-slate-100 text-slate-800 font-medium' : 'text-gray-700'}`}
-                        >
-                          {area}
-                        </button>
-                      ))}
+              {/* Filter Dropdown */}
+              <div className="relative" ref={filterDropdownRef}>
+                <button
+                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                  className="flex items-center justify-center px-6 py-3 border border-gray-200 rounded-xl text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium"
+                >
+                  <Filter className="h-5 w-5 mr-2" />
+                  {selectedExpertise === "All" ? "All Expertise" : selectedExpertise}
+                </button>
+                
+                {showFilterDropdown && (
+                  <div className="absolute z-20 mt-2 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden right-0">
+                    <div className="py-2">
+                      <div className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-gray-50">
+                        Filter by Expertise
+                      </div>
+                      <div className="max-h-60 overflow-y-auto py-2">
+                        {expertiseAreas.map((area, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleExpertiseChange(area)}
+                            className={`block w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition-colors ${selectedExpertise === area ? 'bg-emerald-50 text-emerald-800 font-semibold border-r-4 border-emerald-600' : 'text-gray-700'}`}
+                          >
+                            {area}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
         
-        {/* Header Section */}
-        <div className="text-center mb-10 mt-6">
-          <h1 className="text-4xl font-extrabold text-slate-800 mb-4">Find Your Perfect Mentor</h1>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">Connect with experienced professionals who can guide your learning journey</p>
-        </div>
-        
         {/* Error message */}
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-400 text-red-700 px-6 py-4 rounded-lg mb-8 shadow-md">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium">{error}</p>
+          <div className="mb-8 bg-white rounded-2xl shadow-lg border border-red-200 overflow-hidden">
+            <div className="bg-red-50 border-l-4 border-red-400 text-red-700 px-6 py-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium">{error}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -233,53 +241,63 @@ export default function Homepage() {
         
         {/* Search Results Stats */}
         <div className="flex justify-between items-center mb-6">
-          <p className="text-slate-600">
-            {filteredMentors.length} {filteredMentors.length === 1 ? 'mentor' : 'mentors'} found
-            {selectedExpertise !== "All" && ` in ${selectedExpertise}`}
-            {searchTerm && ` matching "${searchTerm}"`}
-          </p>
+          <div className="bg-white rounded-xl shadow-md border border-gray-100 px-4 py-2">
+            <p className="text-gray-700 font-medium">
+              {filteredMentors.filter((item)=>item.role === "mentor").length} {filteredMentors.length === 1 ? 'mentor' : 'mentors'} found
+              {selectedExpertise !== "All" && (
+                <span className="text-emerald-600"> in {selectedExpertise}</span>
+              )}
+              {searchTerm && (
+                <span className="text-emerald-600"> matching "{searchTerm}"</span>
+              )}
+            </p>
+          </div>
         </div>
         
         {/* Mentors Grid */}
         {filteredMentors.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredMentors.map((mentor) => (
-              <div key={mentor._id} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden transition duration-300 transform hover:scale-[1.02] hover:shadow-lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredMentors.filter((item)=>item.role === "mentor").map((mentor) => (
+              <div 
+                key={mentor._id} 
+                className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer border border-gray-100 hover:border-emerald-200 transform hover:-translate-y-1"
+              >
                 <div className="p-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border-2 border-slate-200 shadow-sm">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-2xl flex items-center justify-center overflow-hidden border-2 border-emerald-200 shadow-inner">
                       {mentor.profileImage ? (
                         <img 
                           src={`http://localhost:3047${mentor.profileImage}`}
                           alt={mentor.name}
-                          className="w-full h-full rounded-full object-cover"
+                          className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span className="text-3xl font-bold text-slate-600">
+                        <span className="text-2xl font-bold text-emerald-600">
                           {mentor.name.charAt(0).toUpperCase()}
                         </span>
                       )}
                     </div>
                     
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-900">{mentor.name}</h3>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-900 mb-1">{mentor.name}</h3>
                       {mentor.university && (
-                        <p className="text-slate-700 font-medium">{mentor.university}</p>
+                        <p className="text-emerald-600 font-medium flex items-center">
+                          <MapPin className="h-4 w-4 mr-1" />
+                          {mentor.university}
+                        </p>
                       )}
                       
                       {/* Rating Stars */}
                       {!loadingRatings && (
-                        <div className="flex items-center mt-1">
-                          <svg className="h-4 w-4 text-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                          <span className="ml-1 text-sm font-medium text-slate-600">
+                        <div className="flex items-center mt-2 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 w-fit">
+                          <Star className="h-4 w-4 text-yellow-500 mr-1" fill="#FFC107" />
+                          <span className="text-sm font-semibold text-emerald-800">
                             {mentorRatings[mentor._id]?.average > 0
                               ? mentorRatings[mentor._id]?.average
                               : "No ratings"}
                           </span>
                           {mentorRatings[mentor._id]?.count > 0 && (
-                            <span className="ml-1 text-xs text-slate-500">
+                            <span className="ml-1 text-xs text-gray-500">
                               ({mentorRatings[mentor._id]?.count})
                             </span>
                           )}
@@ -289,48 +307,54 @@ export default function Homepage() {
                   </div>
                   
                   {mentor.expertiseAreas && (
-                    <div className="mt-5">
-                      <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Expertise</h4>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {mentor.expertiseAreas.split(',').map((area, index) => (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-2 flex items-center">
+                        <GraduationCap className="h-4 w-4 mr-1" />
+                        Expertise
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {mentor.expertiseAreas.split(',').slice(0, 3).map((area, index) => (
                           <span 
                             key={index}
-                            className="inline-block bg-slate-100 text-slate-700 text-xs font-medium px-3 py-1 rounded-full border border-slate-200"
+                            className="inline-block bg-emerald-100 text-emerald-800 text-xs font-medium px-3 py-1 rounded-full border border-emerald-200"
                           >
                             {area.trim()}
                           </span>
                         ))}
+                        {mentor.expertiseAreas.split(',').length > 3 && (
+                          <span className="inline-block bg-gray-100 text-gray-800 text-xs font-medium px-3 py-1 rounded-full border border-gray-200">
+                            +{mentor.expertiseAreas.split(',').length - 3} more
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}
                   
                   {mentor.bio && (
-                    <div className="mt-5">
-                      <p className="text-slate-600 text-sm line-clamp-3">
+                    <div className="mb-5">
+                      <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
                         {mentor.bio}
                       </p>
                     </div>
                   )}
                   
-                  <div className="mt-6 flex justify-between items-center">
-                    <div className="flex items-center text-sm">
-                      <span className="text-slate-500 flex items-center">
-                        <span className="h-2 w-2 bg-slate-300 rounded-full mr-1.5"></span>
-                        Availability varies
-                      </span>
+                  <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Clock className="h-4 w-4 mr-1" />
+                      <span>Available for sessions</span>
                     </div>
                     
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleViewProfile(mentor._id)}
-                        className="bg-white border border-slate-400 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm"
+                        className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm hover:shadow-md"
                       >
-                        Profile
+                        View Profile
                       </button>
                       
                       <button
                         onClick={() => handleBookSession(mentor)}
-                        className="bg-slate-700 hover:bg-slate-800 px-3 py-1.5 rounded-lg text-white text-sm font-medium transition-all shadow-sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all shadow-sm hover:shadow-md"
                       >
                         Book Session
                       </button>
@@ -341,12 +365,12 @@ export default function Homepage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-16 bg-white rounded-xl shadow-md border border-gray-200">
-            <svg className="mx-auto h-16 w-16 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="text-3xl font-bold text-slate-800 mt-4 mb-2">No mentors found</div>
-            <p className="text-slate-600 text-lg">Try adjusting your search or filter criteria</p>
+          <div className="text-center py-16 bg-white rounded-2xl shadow-lg border border-gray-100">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <User className="h-8 w-8 text-gray-400" />
+            </div>
+            <div className="text-2xl font-bold text-gray-900 mb-2">No mentors found</div>
+            <p className="text-gray-600 text-lg">Try adjusting your search or filter criteria</p>
           </div>
         )}
       </div>
