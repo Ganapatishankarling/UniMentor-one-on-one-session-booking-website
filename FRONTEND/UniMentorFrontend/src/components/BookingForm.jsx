@@ -24,7 +24,6 @@ export default function BookingForm(){
                 setMentorName(response.data.mentorName)
                 setLoading(false)
             }catch(err){
-                console.log('Errror fetching available dates',err)
                 toast.error('Failed to load available dates')
                 setLoading(false)
             }
@@ -40,7 +39,6 @@ export default function BookingForm(){
                 const response = await axios.get(`/mentor/${mentorId}/available-slots`,{ params:{date:selectedDate},headers:{Authorization:localStorage.getItem('token')}})
                 setAvailableSlots(response.data.availableSlots)
             }catch(err){
-                console.log('Error fetching available slots',err)
                 toast.error('Failed to load available time slots')
             }
         }
@@ -71,7 +69,6 @@ export default function BookingForm(){
             toast.success('Session booked successfully')
             navigate('/my-sessions')
         } catch (err) {
-            console.log('Error booking session', err)
             toast.error(err.response?.data?.message || 'Failed to book session')
         } finally {
             setSubmitting(false)
