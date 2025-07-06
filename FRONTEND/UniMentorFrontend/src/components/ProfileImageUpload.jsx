@@ -153,10 +153,10 @@ export default function ProfileImageUpload({ profileImage, name, onImageChange }
         : `http://localhost:3047${previewImage}`;
 
     return (
-        <div className="flex flex-col items-center space-y-4">
+        <div className="flex flex-col items-center space-y-6 bg-gradient-to-br from-gray-50 via-white to-gray-100 p-8 rounded-2xl shadow-lg border border-gray-100">
             {/* Profile Image Display */}
             <div className="relative group">
-                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
+                <div className="w-40 h-40 rounded-2xl overflow-hidden border-4 border-white shadow-xl bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
                     {imageUrl && previewImage ? (
                         <img 
                             src={imageUrl}
@@ -168,8 +168,8 @@ export default function ProfileImageUpload({ profileImage, name, onImageChange }
                             }}
                         />
                     ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                            <span className="text-2xl font-bold text-gray-600">
+                        <div className="w-full h-full bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
+                            <span className="text-4xl font-bold text-emerald-600">
                                 {defaultImage || 'U'}
                             </span>
                         </div>
@@ -177,10 +177,10 @@ export default function ProfileImageUpload({ profileImage, name, onImageChange }
                     
                     {imageUrl && previewImage && (
                         <div 
-                            className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center absolute inset-0"
+                            className="w-full h-full bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center absolute inset-0"
                             style={{ display: 'none' }}
                         >
-                            <span className="text-2xl font-bold text-gray-600">
+                            <span className="text-4xl font-bold text-emerald-600">
                                 {defaultImage || 'U'}
                             </span>
                         </div>
@@ -191,16 +191,16 @@ export default function ProfileImageUpload({ profileImage, name, onImageChange }
                     type="button" 
                     onClick={() => setShowUploadModal(true)}
                     aria-label="Edit profile Picture"
-                    className="absolute bottom-2 right-2 bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
+                    className="absolute -bottom-2 -right-2 bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-2xl shadow-lg transition-all duration-300 hover:scale-110 border-4 border-white hover:shadow-xl"
                 >
-                    <Camera size={16} />
+                    <Camera size={20} />
                 </button>
             </div>
 
-            <div className="text-center">
-                <p className="text-sm text-gray-600 font-medium">Profile Picture</p>
-                <p className="text-xs text-gray-500 mt-1">
-                    Click camera icon to update
+            <div className="text-center bg-white rounded-xl shadow-md border border-gray-100 px-6 py-4">
+                <p className="text-lg text-gray-900 font-bold mb-1">Profile Picture</p>
+                <p className="text-sm text-gray-600">
+                    Click camera icon to update your profile image
                 </p>
             </div>
 
@@ -214,30 +214,32 @@ export default function ProfileImageUpload({ profileImage, name, onImageChange }
 
             {/* Upload Modal */}
             {showUploadModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold text-gray-800">Update Profile Picture</h3>
-                            <button 
-                                onClick={cancelUpload}
-                                className="p-1 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                            >
-                                <X size={20} className="text-gray-500" />
-                            </button>
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full mx-4 overflow-hidden">
+                        <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 px-6 py-5 border-b border-emerald-200">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-xl font-bold text-emerald-900">Update Profile Picture</h3>
+                                <button 
+                                    onClick={cancelUpload}
+                                    className="p-2 hover:bg-white hover:bg-opacity-50 rounded-xl transition-all duration-200 text-emerald-700 hover:text-emerald-900"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
                         </div>
                         
-                        <div className="space-y-4">
+                        <div className="p-6 space-y-4">
                             <button 
                                 onClick={triggerFileInput}
-                                className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-xl font-medium transition-colors duration-200 flex items-center justify-center gap-2"
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 px-6 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                             >
-                                <Camera size={18} />
+                                <Camera size={20} />
                                 Choose from Device
                             </button>
                             
                             <button 
                                 onClick={cancelUpload}
-                                className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 px-4 rounded-xl font-medium transition-colors duration-200"
+                                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-4 px-6 rounded-xl font-semibold transition-all duration-200 border border-gray-200 hover:border-gray-300"
                             >
                                 Cancel
                             </button>
@@ -246,24 +248,26 @@ export default function ProfileImageUpload({ profileImage, name, onImageChange }
                 </div>
             )}
 
-            {/* Simple Crop Modal */}
+            {/* Enhanced Crop Modal */}
             {showCropModal && selectedImage && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[95vh] overflow-hidden shadow-2xl border border-gray-100">
                         {/* Header */}
-                        <div className="flex justify-between items-center p-6 border-b">
-                            <h3 className="text-xl font-bold text-gray-800">Choose Profile Picture Area</h3>
-                            <button 
-                                onClick={cancelUpload}
-                                className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                            >
-                                <X size={20} className="text-gray-500" />
-                            </button>
+                        <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 px-6 py-5 border-b border-emerald-200">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-xl font-bold text-emerald-900">Choose Profile Picture Area</h3>
+                                <button 
+                                    onClick={cancelUpload}
+                                    className="p-2 hover:bg-white hover:bg-opacity-50 rounded-xl transition-all duration-200 text-emerald-700 hover:text-emerald-900"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Crop Area */}
-                        <div className="p-6">
-                            <div className="relative inline-block mx-auto">
+                        <div className="p-8 bg-gray-50">
+                            <div className="relative inline-block mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
                                 <img
                                     ref={imageRef}
                                     src={selectedImage}
@@ -275,7 +279,7 @@ export default function ProfileImageUpload({ profileImage, name, onImageChange }
                                 {/* Crop Selection Box */}
                                 {imageSize.width > 0 && (
                                     <div
-                                        className="absolute border-4 border-blue-500 cursor-move"
+                                        className="absolute border-4 border-emerald-600 cursor-move"
                                         style={{
                                             left: cropData.x,
                                             top: cropData.y,
@@ -283,54 +287,54 @@ export default function ProfileImageUpload({ profileImage, name, onImageChange }
                                             height: cropData.size,
                                             borderRadius: '50%',
                                             backgroundColor: 'transparent',
-                                            boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.3), inset 0 0 0 2px rgba(255, 255, 255, 0.8)'
+                                            boxShadow: '0 0 0 4px rgba(16, 185, 129, 0.2), inset 0 0 0 2px rgba(255, 255, 255, 0.9)'
                                         }}
                                         onMouseDown={handleMouseDown}
                                     >
                                         {/* Center crosshair indicator */}
                                         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                                            <div className="w-4 h-0.5 bg-blue-500 absolute top-0 left-1/2 transform -translate-x-1/2" />
-                                            <div className="w-0.5 h-4 bg-blue-500 absolute top-1/2 left-0 transform -translate-y-1/2" />
+                                            <div className="w-6 h-0.5 bg-emerald-600 absolute top-0 left-1/2 transform -translate-x-1/2 rounded-full" />
+                                            <div className="w-0.5 h-6 bg-emerald-600 absolute top-1/2 left-0 transform -translate-y-1/2 rounded-full" />
                                         </div>
                                         
                                         {/* Corner grab handles */}
-                                        <div className="absolute -top-1 -left-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-sm" />
-                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-sm" />
-                                        <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-sm" />
-                                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-sm" />
+                                        <div className="absolute -top-2 -left-2 w-4 h-4 bg-emerald-600 border-2 border-white rounded-full shadow-lg" />
+                                        <div className="absolute -top-2 -right-2 w-4 h-4 bg-emerald-600 border-2 border-white rounded-full shadow-lg" />
+                                        <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-emerald-600 border-2 border-white rounded-full shadow-lg" />
+                                        <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-emerald-600 border-2 border-white rounded-full shadow-lg" />
                                         
                                         {/* Side grab handles */}
-                                        <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-sm" />
-                                        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-sm" />
-                                        <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-sm" />
-                                        <div className="absolute top-1/2 -right-1 transform -translate-y-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-sm" />
+                                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-emerald-600 border-2 border-white rounded-full shadow-lg" />
+                                        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-emerald-600 border-2 border-white rounded-full shadow-lg" />
+                                        <div className="absolute top-1/2 -left-2 transform -translate-y-1/2 w-4 h-4 bg-emerald-600 border-2 border-white rounded-full shadow-lg" />
+                                        <div className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-4 h-4 bg-emerald-600 border-2 border-white rounded-full shadow-lg" />
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         {/* Instructions */}
-                        <div className="px-6 pb-4">
-                            <div className="text-center text-sm text-gray-600">
-                                <p className="flex items-center justify-center gap-2">
-                                    <Move size={14} />
+                        <div className="px-8 pb-4 bg-gray-50">
+                            <div className="text-center bg-emerald-50 rounded-xl border border-emerald-200 p-4">
+                                <p className="flex items-center justify-center gap-2 text-emerald-800 font-medium">
+                                    <Move size={16} />
                                     Drag the circle to select which part of your photo to use
                                 </p>
                             </div>
                         </div>
 
                         {/* Footer */}
-                        <div className="flex justify-end gap-3 p-6 border-t bg-gray-50">
+                        <div className="flex justify-end gap-4 p-6 border-t border-gray-100 bg-white">
                             <button 
                                 onClick={cancelUpload}
-                                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-medium transition-colors duration-200"
+                                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all duration-200 border border-gray-200 hover:border-gray-300"
                             >
                                 Cancel
                             </button>
                             
                             <button 
                                 onClick={cropImage}
-                                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors duration-200 flex items-center gap-2"
+                                className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                             >
                                 <Check size={16} />
                                 Use This Area
