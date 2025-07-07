@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, BookOpen, NotepadText} from 'lucide-react';
+import { Home, BookOpen, NotepadText,ChartNoAxesCombined,Clock} from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserAccount } from '../slices/accountSlice';
@@ -74,7 +74,7 @@ export default function Navbar() {
 
   return (
     <nav className="bg-white shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
@@ -99,6 +99,8 @@ export default function Navbar() {
                 <>
                 <NavLink to="/add-session" icon={<BookOpen className="h-4 w-4" />}>CreateSession</NavLink>
                 <NavLink to="/sessions" icon={<BookOpen className="h-4 w-4" />}>SessionHistory</NavLink>
+                <NavLink to="/mentor-availability" icon={<Clock className="h-4 w-4"/>}>Availability</NavLink>
+                <NavLink to="/Analytics" icon={<ChartNoAxesCombined className="h-4 w-4"/>}>Analytics</NavLink>
                 </>
                 
               )}
@@ -108,7 +110,6 @@ export default function Navbar() {
                 <NavLink to="/" icon={<Home className="h-4 w-4" />}>Home</NavLink>
                 </>
               )}
-              
               
             </div> : ""}
           </div>
