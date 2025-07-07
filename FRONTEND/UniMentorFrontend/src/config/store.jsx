@@ -4,14 +4,17 @@ import accountReducer from '../slices/accountSlice'
 import categoryReducer from '../slices/categorySlice'
 import profileReducer from '../slices/userSlice'
 import sessionReducer from '../slices/sessionSlice'
-
+import reviewReducer from '../slices/reviewSlice'
+import availabilityReducer from '../slices/availabilitySlice'
 const store = configureStore({
     reducer:{
         users:userReducer,
         account:accountReducer,
         categories:categoryReducer,
         profile:profileReducer,
-        sessions:sessionReducer
+        sessions:sessionReducer,
+        reviews:reviewReducer,
+        availabilities:availabilityReducer
     }
 })
 export default store
