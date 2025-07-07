@@ -1,10 +1,12 @@
 import {createSlice,createAsyncThunk} from '@reduxjs/toolkit'
 import axios from '../config/axios.jsx'
 
-export const listUsers = createAsyncThunk('users/listUsers',async()=>{
+export const listUsers = createAsyncThunk('users/listUsers',async(queryParams)=>{
     try{
-        const response = await axios.get('/users',{headers:{Authorization: localStorage.getItem('token')}})
-    console.log(response.data)
+        const queryString = new URLSearchParams(queryParams).toString();
+        console.log("ww",queryString);
+        const response = await axios.get(`/users?${queryString}`,{headers:{Authorization: localStorage.getItem('token')}})
+    console.log("frgrg",response.data)
     return response.data
     }catch(err){
         console.log(err)
@@ -66,6 +68,7 @@ const userSlice = createSlice({
         users:[],
         user:[],
         serverError:null,
+        isAuthenticated: false,
         loading:false,
         isLoggedIn:false,
         profile:null,
@@ -75,10 +78,13 @@ const userSlice = createSlice({
         login:(state,action)=>{
             state.users=action.payload
             state.isLoggedIn=true
+            state.isAuthenticated=true
         },
         logout:(state)=>{
             state.users=null
+            state.isAuthenticated=false
             state.isLoggedIn=false
+            state.profile=null
         },
         clearErrors:(state)=>{
             state.serverError=null
@@ -110,6 +116,8 @@ const userSlice = createSlice({
             state.loading = false
             state.profile = action.payload
             state.serverError = null
+            state.isAuthenticated = true // Set authenticated when profile loads
+            state.isLoggedIn = true // Set logged in when profile loads
         })
         builder.addCase(fetchProfile.rejected,(state,action)=>{
             state.loading = false
