@@ -17,9 +17,7 @@ export default function SessionBooking() {
   const [mentorAvailability, setMentorAvailability] = useState(null);
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(null);
-  console.log("selected",selectedDate);
-  
+  const [selectedDate, setSelectedDate] = useState(null);  
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
   const [selectedSlotIndex, setSelectedSlotIndex] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -39,12 +37,7 @@ export default function SessionBooking() {
         
         // Fetch mentor availability using the correct API endpoint
         const availabilityRes = await axios.get(`/availability/mentor/${mentorId}`);
-        setMentorAvailability(availabilityRes?.data);
-        
-        // Fetch mentor details if needed
-        // const mentorRes = await axios.get(`/user/${mentorId}`);
-        // setMentor(mentorRes?.data);
-        
+        setMentorAvailability(availabilityRes?.data); 
         setError(null);
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -65,15 +58,11 @@ export default function SessionBooking() {
 
 const convertTo24Hour = (time12h) => {
   if (!time12h || typeof time12h !== 'string') return '00:00';
-  
-  // Check if it's already in 24-hour format (HH:MM or H:MM)
   if (/^\d{1,2}:\d{2}$/.test(time12h.trim()) && !time12h.includes(' ')) {
-    // Already in 24-hour format, just ensure proper padding
     const [hours, minutes] = time12h.trim().split(':');
     return `${hours.padStart(2, '0')}:${minutes}`;
   }
   
-  // Handle 12-hour format conversion
   const [time, modifier] = time12h.trim().split(' ');
   if (!time || !modifier) return '00:00';
   
@@ -81,17 +70,15 @@ const convertTo24Hour = (time12h) => {
   if (!hours || !minutes) return '00:00';
   
   let hour24 = parseInt(hours, 10);
-  
-  // Fix the 12-hour conversion logic
+
   if (modifier.toUpperCase() === 'AM') {
     if (hour24 === 12) {
-      hour24 = 0; // 12 AM = 00:00
+      hour24 = 0;
     }
   } else if (modifier.toUpperCase() === 'PM') {
     if (hour24 !== 12) {
-      hour24 += 12; // 1 PM = 13:00, 2 PM = 14:00, etc.
+      hour24 += 12;
     }
-    // 12 PM stays as 12
   }
   
   return `${hour24.toString().padStart(2, '0')}:${minutes}`;
@@ -143,7 +130,6 @@ const isDateAvailable = (date) => {
   const minBookingTime = new Date(now.getTime() + (noticeHours * 60 * 60 * 1000));
   if (date < minBookingTime) return false;
   
-  // Fix: Get day name in lowercase to match backend format
   const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
   const daySchedule = mentorAvailability?.weeklySchedule?.[dayName];
   
@@ -151,7 +137,7 @@ const isDateAvailable = (date) => {
          daySchedule.timeSlots.some(slot => slot.isAvailable && !slot.isBooked);
 };
 
-// Also update your getAvailableTimeSlots function:
+
 const getAvailableTimeSlots = (date) => {
   console.log("Getting slots for date:", date);
   
@@ -173,13 +159,10 @@ const getAvailableTimeSlots = (date) => {
     dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
   }
   
-  console.log("Getting slots for day:", dayName, "date:", formattedDate);
   
   const daySchedule = mentorAvailability.weeklySchedule[dayName];
-  console.log("Day schedule:", daySchedule);
   
   if (!daySchedule || !daySchedule.timeSlots) {
-    console.log("No schedule found for", dayName);
     return [];
   }
   
@@ -212,17 +195,6 @@ const availableSlots = daySchedule.timeSlots.filter((slot, index) => {
     setSelectedDate(null);
     setSelectedTimeSlot(null);
     setSelectedSlotIndex(null);
-  };
-
-  // Check slot availability before confirming
-  const checkSlotAvailability = async (mentorId, day, slotIndex) => {
-    try {
-      const response = await axios.get(`/availability/check/${mentorId}/${day}/${slotIndex}`);
-      return response.data.available;
-    } catch (error) {
-      console.error("Error checking slot availability:", error);
-      return false;
-    }
   };
 
 const confirmDetails = async () => {
