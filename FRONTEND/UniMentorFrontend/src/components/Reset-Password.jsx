@@ -10,9 +10,6 @@ export default function ResetPassword ({ token, onResetComplete, onBackToLogin }
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [resetToken, setResetToken] = useState(token || '');
-//   const queryParams = new URLSearchParams(window.location.search);
-// const token = queryParams.get('token');
-// console.log("name",token);
 
   // Get token from URL if not provided as prop
   useEffect(() => {
