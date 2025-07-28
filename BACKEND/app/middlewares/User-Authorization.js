@@ -1,4 +1,6 @@
 export const userAuthorization = (permittedRoute)=>{
+  
+    
     return (req,res,next)=>{
         if(permittedRoute.includes(req.role)){
             next()
