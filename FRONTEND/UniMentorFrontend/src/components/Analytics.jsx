@@ -1,15 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, Area, AreaChart
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,LineChart, Line, PieChart, Pie, Cell, Area, AreaChart} from 'recharts';
 import { jsPDF } from 'jspdf';
 import jsPDFAutoTable from 'jspdf-autotable';
-import { 
-  Calendar, Clock, TrendingUp, TrendingDown, DollarSign, Users, 
-  BookOpen, AlertCircle, CheckCircle, XCircle, Filter, Download,
-  Target, Activity, Star, Timer
-} from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, DollarSign, BookOpen, AlertCircle,XCircle, Download,Target,Timer} from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserAccount } from '../slices/accountSlice';
 import axios from '../config/axios'
