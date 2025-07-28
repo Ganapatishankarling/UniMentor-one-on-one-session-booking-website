@@ -315,28 +315,6 @@ const getAvailableTimeSlots = (date) => {
     return availableSlots;
 };
 
-
-
-
-const createRescheduleRequest = async (bookingId, requestData) => {
-    try {
-        const response = await fetch(`/bookings/${bookingId}/reschedule-request`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestData)
-        });
-
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error('Error creating reschedule request:', error);
-        throw error;
-    }
-};
-
 const performDirectReschedule = async () => {
     const selectedDateObj = new Date(selectedDate);
     const dayName = selectedDateObj.toLocaleDateString('en-US', { weekday: 'long' });
