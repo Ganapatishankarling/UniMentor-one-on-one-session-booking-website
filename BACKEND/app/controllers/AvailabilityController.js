@@ -29,7 +29,6 @@ availabilityController.getByMentorId = async (req, res) => {
 };
 
 // Get current user's availability (mentor only)
-// Note: Role validation should be handled by middleware using mentorOnlyValidation
 availabilityController.getMy = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
