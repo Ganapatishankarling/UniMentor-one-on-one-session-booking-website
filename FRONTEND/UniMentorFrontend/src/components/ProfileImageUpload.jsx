@@ -2,9 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, X, Check, Move } from 'lucide-react';
 
 export default function ProfileImageUpload({ profileImage, name, onImageChange }) {
-    const [previewImage, setPreviewImage] = useState(profileImage);
-    console.log("ssdd",previewImage);
-    
+    const [previewImage, setPreviewImage] = useState(profileImage);    
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [showCropModal, setShowCropModal] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
