@@ -7,24 +7,12 @@ import { fetchUserAccount } from '../slices/accountSlice';
 export default function ProtectedRoute({ children, allowedRoles = [] }){
     const dispatch = useDispatch();
     const navigate = useNavigate()
-  const { users, isLoggedIn, isAuthenticated } = useSelector((state) => state.users);
     const { data:profile } = useSelector((state) => state.account);
-console.log("pu",profile);
  useEffect(() => {
     dispatch(listUsers ());
      dispatch(fetchUserAccount());
   }, [dispatch]);
   const token = localStorage.getItem('token');
-
-
-  // const {data} = useSelector((state)=> state.account )
-
-
-  // useEffect(()=>{
-  //   if(token){
-  //     dispatch(fetchUserAccount())
-  //   }
-  // },[token])
 
   useEffect(()=>{
     if(!token){
@@ -43,7 +31,6 @@ console.log("pu",profile);
   }
 
   // Check if user's role is in allowed roles (case-sensitive to match backend)
-  // Use profile.role if profile exists, otherwise users.role
   console.log("al",allowedRoles);
   
   const userRole = profile?.role
