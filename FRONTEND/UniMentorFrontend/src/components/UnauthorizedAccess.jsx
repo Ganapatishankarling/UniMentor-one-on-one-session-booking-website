@@ -1,8 +1,7 @@
 // UnauthorizedAccess.jsx
-import { useEffect, useState } from 'react';
+import React,{ useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import React from 'react';
 export default function UnauthorizedAccess(){
   const navigate = useNavigate();
   const dispatch = useDispatch();
