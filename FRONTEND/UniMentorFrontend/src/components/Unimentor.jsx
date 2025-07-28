@@ -6,7 +6,6 @@ import { fetchUserAccount } from '../slices/accountSlice';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  // const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const location = useLocation();
@@ -17,21 +16,6 @@ export default function Navbar() {
      
       dispatch(fetchUserAccount());
     }, [dispatch]);
-  // Check authentication status on component mount
-  // useEffect(() => {
-  //   const token = localStorage.getItem('token');
-  //   if (token) {
-  //     setIsLoggedIn(true);
-  //   }
-  // }, []);
-
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-
-  const closeMenu = () => {
-    setIsMenuOpen(false);
-  };
 
   const handleProfileClick = () => {
     setProfileDropdownOpen(!profileDropdownOpen);
@@ -39,7 +23,6 @@ export default function Navbar() {
 
   const navigateToProfile = () => {
     // Navigate to profile page
-    // Using native anchor for now
     window.location.href = '/profile';
     setProfileDropdownOpen(false);
   };
