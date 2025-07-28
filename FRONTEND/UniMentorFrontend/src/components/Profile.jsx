@@ -10,10 +10,7 @@ import axios from '../config/axios.jsx'
 export default function Profile(){
     const dispatch = useDispatch()
     const navigate = useNavigate()
-    const {id} = useParams()
     const {loading,serverError,data:account} = useSelector((state)=>state.account)
-    const { user, loading: userLoading } = useSelector((state) => state.users)
-    const { categories } = useSelector((state)=> state.categories)
     const [isActive,setIsActive] = useState(account?.mentorIshAvailability)
 
     useEffect(()=>{
