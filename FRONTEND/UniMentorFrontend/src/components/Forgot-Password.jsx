@@ -43,17 +43,6 @@ email:email
       }).catch((error)=>{
 setError(error.message);
       })
-      // await axios.post('/forgot-password', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({ email }),
-      // });
-
-      // const data = await response.json();
-      
-     
     } catch (err) {
       setError('Network error. Please try again.');
     } finally {
